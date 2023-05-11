@@ -9,10 +9,7 @@
     "lint:js": "eslint -f unix .",
     "lint-fix": "eslint -f unix . --fix",
     "lint:sol": "solhint -f unix \"contracts/**/*.sol\" --max-warnings 0",
-    "test": "hardhat test ",
-    "deploy-accountfactory": "hardhat run deploy/deploy-BloctoAccountFactory.ts",
-    "verify-accountfactory": "npx hardhat verify 0xf8915e6896fb575a95246793b150c56e2666da11 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 ",
-    "verify-verifyingpaymaster": "npx hardhat verify 0x214cC14b7312855c7F5FF156757B2eeeB938048D 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0xec53Efb202a4427bae100776BA920A5938E9d509"
+    "test": "hardhat test"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",

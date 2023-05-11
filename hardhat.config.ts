@@ -33,6 +33,14 @@ function getNetwork (name: string): { url: string, accounts: { mnemonic: string 
   // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`)
 }
 
+const optimizedComilerSettings = {
+  version: '0.8.17',
+  settings: {
+    optimizer: { enabled: true, runs: 1000000 },
+    viaIR: true
+  }
+}
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -43,7 +51,12 @@ const config: HardhatUserConfig = {
       settings: {
         optimizer: { enabled: true, runs: 1000000 }
       }
-    }]
+    }],
+    overrides: {
+      'contracts/core/EntryPoint.sol': optimizedComilerSettings,
+      'contracts/BloctoAccountCloneableWallet.sol': optimizedComilerSettings,
+      'contracts/BloctoAccount4337/BloctoAccount4337CloneableWallet.sol': optimizedComilerSettings
+    }
   },
   networks: {
     dev: { url: 'http://localhost:8545' },
