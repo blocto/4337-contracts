@@ -19,7 +19,7 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
     /// @notice This is the version of this contract.
     string public constant VERSION = "1.4.0";
 
-    IEntryPoint private _entryPoint;
+    address public constant EntryPointV060 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     modifier onlySelf() {
         require(msg.sender == address(this), "only self");
@@ -29,20 +29,10 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
     // override from UUPSUpgradeable
     function _authorizeUpgrade(address newImplementation) internal view override onlySelf {
         (newImplementation);
-        require(msg.sender == address(this), "BloctoAccount: only self");
     }
-
-    constructor(IEntryPoint anEntryPoint) {
-        _entryPoint = anEntryPoint;
-    }
-    /// @inheritdoc BaseAccount
 
     function entryPoint() public view virtual override returns (IEntryPoint) {
-        return _entryPoint;
-    }
-
-    function setEntryPoint(address anEntryPoint) public onlySelf {
-        _entryPoint = IEntryPoint(anEntryPoint);
+        return IEntryPoint(EntryPointV060);
     }
 
     /**
@@ -64,6 +54,16 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
         }
     }
 
+    // internal call for execute and executeBatch
+    function _call(address target, uint256 value, bytes memory data) internal {
+        (bool success, bytes memory result) = target.call{value: value}(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
+    }
+
     /// implement template method of BaseAccount
     function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash)
         internal
@@ -77,15 +77,6 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
         }
 
         return 0;
-    }
-
-    function _call(address target, uint256 value, bytes memory data) internal {
-        (bool success, bytes memory result) = target.call{value: value}(data);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
     }
 
     /**

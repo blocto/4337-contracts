@@ -9,7 +9,7 @@ contract BloctoAccount4337CloneableWallet is BloctoAccount4337 {
     /// @dev An empty constructor that deploys a NON-FUNCTIONAL version
     ///  of `BloctoAccount`
 
-    constructor(IEntryPoint anEntryPoint) BloctoAccount4337(anEntryPoint) {
+    constructor() {
         initialized = true;
     }
 }

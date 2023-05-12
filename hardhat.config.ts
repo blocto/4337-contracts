@@ -13,7 +13,6 @@ const {
   POLYGONSCAN_API_KEY, // polygonscan API KEY
   BSCSCAN_API_KEY, // bscscan API KEY
   SNOWTRACE_API_KEY, // avalanche scan (snowtrace) API KEY
-  OPSCAN_API_KEY, // optimistic scan API KEY
   ARBSCAN_API_KEY // arbitrum scan API KEY
 } = process.env
 
@@ -72,9 +71,7 @@ const config: HardhatUserConfig = {
         process.env.ETH_PRIVATE_KEY !== undefined
           ? [process.env.ETH_PRIVATE_KEY]
           : [],
-      chainId: 80001,
-      gas: 8000000, // 8M
-      gasPrice: 10000000000 // 10 gwei
+      chainId: 80001
     }
   },
   mocha: {
@@ -91,8 +88,7 @@ const config: HardhatUserConfig = {
       avalanche: SNOWTRACE_API_KEY,
       goerli: ETHERSCAN_API_KEY,
       arbitrumOne: ARBSCAN_API_KEY,
-      arbitrumGoerli: ARBSCAN_API_KEY,
-      optimism: OPSCAN_API_KEY
+      arbitrumGoerli: ARBSCAN_API_KEY
     }
   }
 

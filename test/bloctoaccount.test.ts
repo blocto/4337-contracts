@@ -6,13 +6,16 @@ import {
   BloctoAccount__factory,
   BloctoAccountCloneableWallet,
   BloctoAccountCloneableWallet__factory,
+  BloctoAccount4337CloneableWallet,
   BloctoAccount4337CloneableWallet__factory,
   BloctoAccountFactory,
   BloctoAccountFactory__factory,
   TestERC20,
   TestERC20__factory,
   TestBloctoAccountV2,
-  TestBloctoAccountV2__factory
+  TestBloctoAccountV2__factory,
+  BloctoAccount4337,
+  BloctoAccount4337__factory
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
@@ -106,7 +109,8 @@ describe('BloctoAccount Upgrade Test', function () {
   describe('should upgrade to 4337 with method1 upgradeTo', () => {
     const AccountSalt = '0x4eb84e5765b53776863ffa7c4965af012ded5be4000000000000000000000002'
     let account: BloctoAccount
-    let implementation4337: BloctoAccountCloneableWallet
+    let account4337: BloctoAccount4337
+    let implementation4337: BloctoAccount4337CloneableWallet
 
     async function upgradeAccountToImplementation4337 (): Promise<void> {
       const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
@@ -120,7 +124,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     before(async () => {
       account = await testCreateAccount(AccountSalt)
-      implementation4337 = await new BloctoAccount4337CloneableWallet__factory(ethersSigner).deploy(entryPoint.address)
+      implementation4337 = await new BloctoAccount4337CloneableWallet__factory(ethersSigner).deploy()
       await factory.setImplementation(implementation4337.address)
     })
 
@@ -133,6 +137,7 @@ describe('BloctoAccount Upgrade Test', function () {
     it('upgrade test', async () => {
       expect(await account.VERSION()).to.eql('1.3.0')
       await upgradeAccountToImplementation4337()
+      account4337 = BloctoAccount4337__factory.connect(account.address, ethersSigner)
       expect(await account.VERSION()).to.eql('1.4.0')
     })
 
@@ -155,6 +160,10 @@ describe('BloctoAccount Upgrade Test', function () {
         factory
       )
       expect(await accountNew.VERSION()).to.eql('1.4.0')
+    })
+
+    it('should be v060 address', async () => {
+      expect(await account4337.entryPoint()).to.eql(await implementation4337.EntryPointV060())
     })
   })
 })

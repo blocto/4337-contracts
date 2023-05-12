@@ -9,7 +9,13 @@
     "lint:js": "eslint -f unix .",
     "lint-fix": "eslint -f unix . --fix",
     "lint:sol": "solhint -f unix \"contracts/**/*.sol\" --max-warnings 0",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy-bloctoaccountcloneable": "hardhat run deploy/1_deploy_BloctoAccount4337CloneableWallet.ts",
+    "deploy-bloctoaccountfactory": "hardhat run deploy/2_deploy_BloctoAccountFactory.ts",
+    "deploy-verifyingpaymaster": "hardhat run deploy/3_deploy_VerifyingPaymaster.ts",
+    "verify-bloctoaccountcloneable": "npx hardhat verify 0x021dca3104aa79f68efec784b56afa382b1fd7b8",
+    "verify-accountfactory": "npx hardhat verify 0x7f0b3252e7d0199d8c94dd07325a2a1386f78fb1 0x021dca3104aa79f68efec784b56afa382b1fd7b8",
+    "verify-verifyingpaymaster": "npx hardhat verify 0xE671dEee9c758e642d50c32e13FD5fC6D42C98F1 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0x086443C6bA8165a684F3e316Da42D3A2F0a2330a"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",
