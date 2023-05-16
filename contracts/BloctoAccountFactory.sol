@@ -21,7 +21,7 @@ contract BloctoAccountFactory is Ownable {
     }
 
     /**
-     * create an account, and return its address(BloctoAccount).
+     * create an account, and return its BloctoAccount.
      * returns the address even if the account is already deployed.
      * Note that during UserOperation execution, this method is called only if the account is not deployed.
      * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation

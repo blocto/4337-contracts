@@ -3,7 +3,7 @@ import '@typechain/hardhat'
 import { HardhatUserConfig } from 'hardhat/config'
 import '@nomiclabs/hardhat-etherscan'
 import '@openzeppelin/hardhat-upgrades'
-
+import 'hardhat-storage-layout'
 import 'solidity-coverage'
 
 import * as fs from 'fs'

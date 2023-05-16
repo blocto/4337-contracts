@@ -15,24 +15,27 @@ import "../CoreWallet/CoreWallet.sol";
  * Blocto account.
  *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
  */
-contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
-    /// @notice This is the version of this contract.
+contract TestBloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
+    /**
+     *  This is the version of this contract.
+     */
     string public constant VERSION = "1.4.0";
 
-    address public constant EntryPointV060 = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    IEntryPoint private immutable _entryPoint;
 
-    modifier onlySelf() {
-        require(msg.sender == address(this), "only self");
-        _;
+    constructor(IEntryPoint anEntryPoint) {
+        _entryPoint = anEntryPoint;
     }
 
-    // override from UUPSUpgradeable
-    function _authorizeUpgrade(address newImplementation) internal view override onlySelf {
+    /**
+     * override from UUPSUpgradeable
+     */
+    function _authorizeUpgrade(address newImplementation) internal view override onlyInvoked {
         (newImplementation);
     }
 
     function entryPoint() public view virtual override returns (IEntryPoint) {
-        return IEntryPoint(EntryPointV060);
+        return _entryPoint;
     }
 
     /**
@@ -44,7 +47,7 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
     }
 
     /**
-     * execute a sequence of transactions
+     * execute a sequence of transactions (called directly by entryPoint)
      */
     function executeBatch(address[] calldata dest, bytes[] calldata func) external {
         _requireFromEntryPoint();
@@ -54,7 +57,7 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
         }
     }
 
-    // internal call for execute and executeBatch
+    /// internal call for execute and executeBatch
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
@@ -64,7 +67,7 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
         }
     }
 
-    /// implement template method of BaseAccount
+    /// implement validate signature method of BaseAccount
     function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash)
         internal
         virtual
@@ -80,21 +83,25 @@ contract BloctoAccount4337 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet,
     }
 
     /**
-     * check current account deposit in the entryPoint
+     * check current account deposit in the entryPoint StakeManager
      */
     function getDeposit() public view returns (uint256) {
         return entryPoint().balanceOf(address(this));
     }
 
     /**
-     * deposit more funds for this account in the entryPoint
+     * deposit more funds for this account in the entryPoint StakeManager
      */
     function addDeposit() public payable {
         entryPoint().depositTo{value: msg.value}(address(this));
     }
 
-    // withdraw deposit to withdrawAddress by cosigner & authorizedAddress signature
-    function withdrawDepositTo(address payable withdrawAddress, uint256 amount) external onlySelf {
+    /**
+     * withdraw deposit to withdrawAddress from entryPoint StakeManager
+     * @param withdrawAddress target to send to
+     * @param amount to withdraw
+     */
+    function withdrawDepositTo(address payable withdrawAddress, uint256 amount) external onlyInvoked {
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
 }

@@ -6,85 +6,102 @@ pragma solidity ^0.8.12;
 /* solhint-disable reason-string */
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@account-abstraction/contracts/core/BaseAccount.sol";
+
 import "./TokenCallbackHandler.sol";
 import "./CoreWallet/CoreWallet.sol";
-// for test
-import "hardhat/console.sol";
 
 /**
  * Blocto account.
+ *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
  */
-contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet {
-    /// @notice This is the version of this contract.
+contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
+    /**
+     *  This is the version of this contract.
+     */
     string public constant VERSION = "1.3.0";
 
-    //-----------------------------------------Method 1---------------------------------------------//
-    function _authorizeUpgrade(address newImplementation) internal view override {
+    IEntryPoint private immutable _entryPoint;
+
+    constructor(IEntryPoint anEntryPoint) {
+        _entryPoint = anEntryPoint;
+    }
+
+    /**
+     * override from UUPSUpgradeable
+     */
+    function _authorizeUpgrade(address newImplementation) internal view override onlyInvoked {
         (newImplementation);
-        require(msg.sender == address(this), "BloctoAccount: only self");
     }
 
-    //-----------------------------------------Method 2---------------------------------------------//
-    // invoke cosigner check
-    modifier onlyInvokeCosigner(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 nonce,
-        address authorizedAddress,
-        bytes memory data
-    ) {
-        // check signature version
-        require(v == 27 || v == 28, "Invalid signature version.");
-
-        // calculate hash
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, authorizedAddress, data));
-
-        // recover signer
-        address signer = ecrecover(operationHash, v, r, s);
-
-        // check for valid signature
-        require(signer != address(0), "Invalid signature.");
-
-        // check nonce
-        require(nonce > nonces[signer], "must use valid nonce for signer");
-
-        // check signer
-        require(signer == authorizedAddress, "authorized addresses must be equal");
-
-        // Get cosigner
-        address requiredCosigner = address(authorizations[authVersion + uint256(uint160(signer))]);
-
-        // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
-        // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == signer || requiredCosigner == msg.sender, "Invalid authorization.");
-
-        // increment nonce to prevent replay attacks
-        nonces[signer] = nonce;
-
-        _;
+    function entryPoint() public view virtual override returns (IEntryPoint) {
+        return _entryPoint;
     }
 
-    // upgrade contract by msg.sender is cosigner and sign message (v, r, s) by authorizedAddress
-    function invokeCosignerUpgrade(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 nonce,
-        address authorizedAddress,
-        address newImplementation
-    ) external onlyInvokeCosigner(v, r, s, nonce, authorizedAddress, abi.encodePacked(newImplementation)) {
-        _upgradeTo(newImplementation);
+    /**
+     * execute a transaction (called directly by entryPoint)
+     */
+    function execute(address dest, uint256 value, bytes calldata func) external {
+        _requireFromEntryPoint();
+        _call(dest, value, func);
     }
 
-    //-----------------------------------------Method 3---------------------------------------------//
-    // modifier onlySelf() {
-    //     require(msg.sender == address(this), "only self");
-    //     _;
-    // }
+    /**
+     * execute a sequence of transactions (called directly by entryPoint)
+     */
+    function executeBatch(address[] calldata dest, bytes[] calldata func) external {
+        _requireFromEntryPoint();
+        require(dest.length == func.length, "wrong array lengths");
+        for (uint256 i = 0; i < dest.length; i++) {
+            _call(dest[i], 0, func[i]);
+        }
+    }
 
-    // function upgradeTo(address newImplementation) external override onlyProxy onlySelf {
-    //     _upgradeTo(newImplementation);
-    // }
+    /// internal call for execute and executeBatch
+    function _call(address target, uint256 value, bytes memory data) internal {
+        (bool success, bytes memory result) = target.call{value: value}(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
+    }
+
+    /// implement validate signature method of BaseAccount
+    function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash)
+        internal
+        virtual
+        override
+        returns (uint256 validationData)
+    {
+        bytes4 result = this.isValidSignature(userOpHash, userOp.signature);
+        if (result != IERC1271.isValidSignature.selector) {
+            return SIG_VALIDATION_FAILED;
+        }
+
+        return 0;
+    }
+
+    /**
+     * check current account deposit in the entryPoint StakeManager
+     */
+    function getDeposit() public view returns (uint256) {
+        return entryPoint().balanceOf(address(this));
+    }
+
+    /**
+     * deposit more funds for this account in the entryPoint StakeManager
+     */
+    function addDeposit() public payable {
+        entryPoint().depositTo{value: msg.value}(address(this));
+    }
+
+    /**
+     * withdraw deposit to withdrawAddress from entryPoint StakeManager
+     * @param withdrawAddress target to send to
+     * @param amount to withdraw
+     */
+    function withdrawDepositTo(address payable withdrawAddress, uint256 amount) external onlyInvoked {
+        entryPoint().withdrawTo(withdrawAddress, amount);
+    }
 }

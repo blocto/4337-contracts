@@ -46,6 +46,13 @@ verify VerifyingPaymaster
 yarn verify-verifyingpaymaster --network mumbai
 ```
 
+## Tool
+
+check storage layout
+```
+npx hardhat check
+```
+
 ## Acknowledgement
 
 this repo fork from https://github.com/eth-infinitism/account-abstraction
