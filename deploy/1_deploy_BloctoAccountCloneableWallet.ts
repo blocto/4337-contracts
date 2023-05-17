@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat'
 
-const ContractName = 'BloctoAccount4337CloneableWallet'
+const ContractName = 'BloctoAccountCloneableWallet'
 const GasLimit = 6000000
 
 async function main (): Promise<void> {

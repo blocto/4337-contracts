@@ -45,8 +45,6 @@ describe('BloctoAccount Upgrade Test', function () {
 
   let entryPoint: EntryPoint
 
-  let erc20: TestERC20
-
   async function testCreateAccount (salt: string): Promise<BloctoAccount> {
     const account = await createAccount(
       ethersSigner,
@@ -75,7 +73,7 @@ describe('BloctoAccount Upgrade Test', function () {
     await fund(cosignerWallet.address)
 
     // test erc20
-    erc20 = await new TestERC20__factory(ethersSigner).deploy('Test ERC20', 'T20', 18)
+    // erc20 = await new TestERC20__factory(ethersSigner).deploy('Test ERC20', 'T20', 18)
   })
 
   describe('should upgrade to different version implementation', () => {
