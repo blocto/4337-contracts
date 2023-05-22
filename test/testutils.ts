@@ -108,7 +108,7 @@ export function getAccountInitCode (authorizedAddress: string, cosignerAddress: 
 // given the parameters as AccountDeployer, return the resulting "counterfactual address" that it would create.
 export async function getAccountAddress (authorizedAddress: string, cosignerAddress: string, recoveryAddress: string,
   factory: BloctoAccountFactory, salt = 0): Promise<string> {
-  return await factory.getAddress(authorizedAddress, cosignerAddress, recoveryAddress, salt)
+  return await factory.getAddress(cosignerAddress, recoveryAddress, salt)
 }
 
 const panicCodes: { [key: number]: string } = {
@@ -250,7 +250,7 @@ export async function createAccount (
   authorizedAddresses: string,
   cosignerAddresses: string,
   recoverAddresses: string,
-  salt: BytesLike,
+  salt: BigNumberish,
   accountFactory: BloctoAccountFactory
 ): Promise<BloctoAccount> {
   await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt)

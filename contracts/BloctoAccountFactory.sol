@@ -26,7 +26,7 @@ contract BloctoAccountFactory is Ownable {
      * Note that during UserOperation execution, this method is called only if the account is not deployed.
      * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
      */
-    function createAccount(address _authorizedAddress, address _cosigner, address _recoveryAddress, bytes32 _salt)
+    function createAccount(address _authorizedAddress, address _cosigner, address _recoveryAddress, uint256 _salt)
         public
         returns (BloctoAccount ret)
     {
@@ -40,14 +40,14 @@ contract BloctoAccountFactory is Ownable {
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
         newProxy.initImplementation(bloctoAccountImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
-        ret.init(_authorizedAddress, _cosigner, _recoveryAddress);
+        ret.init(_authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress);
         emit WalletCreated(address(ret), _authorizedAddress, false);
     }
 
     /**
      * calculate the counterfactual address of this account as it would be returned by createAccount()
      */
-    function getAddress(address _cosigner, address _recoveryAddress, bytes32 _salt) public view returns (address) {
+    function getAddress(address _cosigner, address _recoveryAddress, uint256 _salt) public view returns (address) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         return Create2.computeAddress(
             bytes32(salt), keccak256(abi.encodePacked(type(BloctoAccountProxy).creationCode, abi.encode(address(this))))
