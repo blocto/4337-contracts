@@ -231,8 +231,7 @@ contract CoreWallet is IERC1271 {
     ///  transaction, when someone calls a method we have dynamically added a delegate for, or when someone
     ///  tries to call a function we don't implement, either statically or dynamically.
     ///
-    ///  A correct invocation of this method occurs in two cases:
-    ///  - someone transfers ETH to this wallet (`msg.data.length` is  0)
+    ///  A correct invocation of this method occurs in following case:
     ///  - someone calls a delegated function (`msg.data.length` is greater than 0 and
     ///    `delegates[msg.sig]` is set)
     ///  In all other cases, this function will revert.
@@ -266,7 +265,11 @@ contract CoreWallet is IERC1271 {
     }
 
     // solhint-disable-next-line no-empty-blocks
-    receive() external payable {}
+    receive() external payable {
+        if (msg.value > 0) {
+            emit Received(msg.sender, msg.value);
+        }
+    }
 
     /// @notice Adds or removes dynamic support for an interface. Can be used in 3 ways:
     ///   - Add a contract "delegate" that implements a single function

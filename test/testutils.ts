@@ -73,10 +73,6 @@ export function createAuthorizedCosignerRecoverWallet (): [Wallet, Wallet, Walle
   return [createTmpAccount(), createTmpAccount(), createTmpAccount()]
 }
 
-export function createAddress (): string {
-  return createAccountOwner().address
-}
-
 export function callDataCost (data: string): number {
   return ethers.utils.arrayify(data)
     .map(x => x === 0 ? 4 : 16)

@@ -45,13 +45,13 @@ describe('BloctoAccount Upgrade Test', function () {
 
   let entryPoint: EntryPoint
 
-  async function testCreateAccount (salt: string): Promise<BloctoAccount> {
+  async function testCreateAccount (salt: number): Promise<BloctoAccount> {
     const account = await createAccount(
       ethersSigner,
       await authorizedWallet.getAddress(),
       await cosignerWallet.getAddress(),
       await recoverWallet.getAddress(),
-      salt,
+      BigNumber.from(salt),
       factory
     )
     await fund(account)
@@ -76,8 +76,30 @@ describe('BloctoAccount Upgrade Test', function () {
     // erc20 = await new TestERC20__factory(ethersSigner).deploy('Test ERC20', 'T20', 18)
   })
 
+  describe('wallet function', () => {
+    const AccountSalt = 123
+    let account: BloctoAccount
+    before(async () => {
+      account = await testCreateAccount(AccountSalt)
+    })
+
+    it('should receive native token', async () => {
+      const beforeRecevive = await ethers.provider.getBalance(account.address)
+      const [owner] = await ethers.getSigners()
+
+      const tx = await owner.sendTransaction({
+        to: account.address,
+        value: ONE_ETH // Sends exactly 1.0 ether
+      })
+      const receipt = await tx.wait()
+      const receivedSelector = ethers.utils.id('Received(address,uint256)')
+      expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
+      expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+  })
+
   describe('should upgrade to different version implementation', () => {
-    const AccountSalt = '0x4eb84e5765b53776863ffa7c4965af012ded5be4000000000000000000000002'
+    const AccountSalt = 12345
     const MockEntryPointV070 = '0x000000000000000000000000000000000000E070'
     let account: BloctoAccount
     let implementationV140: TestBloctoAccountCloneableWalletV140
