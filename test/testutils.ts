@@ -73,6 +73,10 @@ export function createAuthorizedCosignerRecoverWallet (): [Wallet, Wallet, Walle
   return [createTmpAccount(), createTmpAccount(), createTmpAccount()]
 }
 
+export function createAddress (): string {
+  return createTmpAccount().address
+}
+
 export function callDataCost (data: string): number {
   return ethers.utils.arrayify(data)
     .map(x => x === 0 ? 4 : 16)
@@ -94,17 +98,16 @@ export async function calcGasUsage (rcpt: ContractReceipt, entryPoint: EntryPoin
 }
 
 // helper function to create the initCode to deploy the account, using our account factory.
-export function getAccountInitCode (authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, factory: BloctoAccountFactory, salt = 0): BytesLike {
+export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
   return hexConcat([
     factory.address,
-    factory.interface.encodeFunctionData('createAccount', [authorizedAddress, cosignerAddress, recoveryAddress, salt])
+    factory.interface.encodeFunctionData('createAccount', [authorizedAddress, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
   ])
 }
 
 // given the parameters as AccountDeployer, return the resulting "counterfactual address" that it would create.
-export async function getAccountAddress (authorizedAddress: string, cosignerAddress: string, recoveryAddress: string,
-  factory: BloctoAccountFactory, salt = 0): Promise<string> {
-  return await factory.getAddress(cosignerAddress, recoveryAddress, salt)
+export async function getAccountAddress (factory: BloctoAccountFactory, cosignerAddress: string, recoveryAddress: string, salt = 0): Promise<string> {
+  return await factory.getAddress(cosignerAddress, recoveryAddress, BigNumber.from(salt))
 }
 
 const panicCodes: { [key: number]: string } = {
