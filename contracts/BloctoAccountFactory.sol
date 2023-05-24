@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/Create2.sol";
 // import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./BloctoAccountProxy.sol";
 import "./BloctoAccount.sol";
 
@@ -13,11 +14,13 @@ contract BloctoAccountFactory is Ownable {
     string public constant VERSION = "1.3.0";
     // address public accountImplementation;
     address public bloctoAccountImplementation;
+    IEntryPoint public entryPoint;
 
     event WalletCreated(address wallet, address authorizedAddress, bool full);
 
-    constructor(address _bloctoAccountImplementation) {
+    constructor(address _bloctoAccountImplementation, IEntryPoint _entryPoint) {
         bloctoAccountImplementation = _bloctoAccountImplementation;
+        entryPoint = _entryPoint;
     }
 
     /**
@@ -56,5 +59,27 @@ contract BloctoAccountFactory is Ownable {
 
     function setImplementation(address _bloctoAccountImplementation) public onlyOwner {
         bloctoAccountImplementation = _bloctoAccountImplementation;
+    }
+
+    function setEntrypoint(IEntryPoint _entrypoint) public onlyOwner {
+        entryPoint = _entrypoint;
+    }
+
+    /**
+     * withdraw value from the deposit
+     * @param withdrawAddress target to send to
+     * @param amount to withdraw
+     */
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
+        entryPoint.withdrawTo(withdrawAddress, amount);
+    }
+
+    /**
+     * add stake for this factory.
+     * This method can also carry eth value to add to the current stake.
+     * @param unstakeDelaySec - the unstake delay for this factory. Can only be increased.
+     */
+    function addStake(uint32 unstakeDelaySec) external payable onlyOwner {
+        entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
 }

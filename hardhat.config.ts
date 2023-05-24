@@ -46,16 +46,11 @@ const optimizedComilerSettings = {
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [{
-      version: '0.8.15',
+      version: '0.8.17',
       settings: {
         optimizer: { enabled: true, runs: 1000000 }
       }
-    }],
-    overrides: {
-      'contracts/core/EntryPoint.sol': optimizedComilerSettings,
-      'contracts/BloctoAccountCloneableWallet.sol': optimizedComilerSettings,
-      'contracts/BloctoAccount4337/BloctoAccount4337CloneableWallet.sol': optimizedComilerSettings
-    }
+    }]
   },
   networks: {
     dev: { url: 'http://localhost:8545' },
@@ -66,7 +61,7 @@ const config: HardhatUserConfig = {
     proxy: getNetwork1('http://localhost:8545'),
     // mumbai: getNetwork1('https://polygon-testnet.public.blastapi.io'),
     mumbai: {
-      url: 'https://polygon-testnet.public.blastapi.io',
+      url: 'https://rpc.ankr.com/polygon_mumbai',
       accounts:
         process.env.ETH_PRIVATE_KEY !== undefined
           ? [process.env.ETH_PRIVATE_KEY]

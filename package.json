@@ -14,7 +14,7 @@
     "deploy-bloctoaccountfactory": "hardhat run deploy/2_deploy_BloctoAccountFactory.ts",
     "deploy-verifyingpaymaster": "hardhat run deploy/3_deploy_VerifyingPaymaster.ts",
     "verify-bloctoaccountcloneable": "npx hardhat verify 0x021dca3104aa79f68efec784b56afa382b1fd7b8",
-    "verify-accountfactory": "npx hardhat verify 0x7f0b3252e7d0199d8c94dd07325a2a1386f78fb1 0x021dca3104aa79f68efec784b56afa382b1fd7b8",
+    "verify-accountfactory": "npx hardhat verify 0xC261555D0e4623BF709d3f22Bf58A6275CE4d17D 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
     "verify-verifyingpaymaster": "npx hardhat verify 0xE671dEee9c758e642d50c32e13FD5fC6D42C98F1 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0x086443C6bA8165a684F3e316Da42D3A2F0a2330a"
   },
   "devDependencies": {
