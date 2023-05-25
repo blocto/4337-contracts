@@ -34,6 +34,7 @@ import {
   rethrow,
   tostr,
   getAccountInitCode,
+  getAccountInitCode2,
   calcGasUsage,
   ONE_ETH,
   TWO_ETH,
@@ -43,6 +44,7 @@ import {
   getAccountAddress,
   HashZero,
   simulationResultCatch,
+  createTmpAccount,
   createAccount,
   getAggregatedAccountInitCode,
   simulationResultWithAggregationCatch, decodeRevertReason,
@@ -294,6 +296,30 @@ describe('EntryPoint', function () {
     it('should succeed for creating an account', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const initCode = getAccountInitCode(factory, authorizedWallet2.address, cosignerWallet2.address, recoverWallet2.address)
+      const sender = await entryPoint.callStatic.getSenderAddress(initCode).catch(e => e.errorArgs.sender)
+
+      const op1 = await fillAndSignWithCoSigner({
+        initCode: initCode,
+        sender: sender,
+        verificationGasLimit: 8e5,
+        maxFeePerGas: 0
+      },
+      authorizedWallet2,
+      cosignerWallet2,
+      entryPoint
+      )
+      await fund(op1.sender)
+
+      await entryPoint.callStatic.simulateValidation(op1).catch(simulationResultCatch)
+    })
+
+    it('should succeed for creating an account with multiple authorize address', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const authorizedWallet22 = createTmpAccount()
+
+      const addresses = hexConcat([authorizedWallet2.address, authorizedWallet22.address])
+
+      const initCode = getAccountInitCode2(factory, addresses, cosignerWallet2.address, recoverWallet2.address)
       const sender = await entryPoint.callStatic.getSenderAddress(initCode).catch(e => e.errorArgs.sender)
 
       const op1 = await fillAndSignWithCoSigner({

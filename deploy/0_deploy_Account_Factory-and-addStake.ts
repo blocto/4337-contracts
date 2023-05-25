@@ -10,7 +10,7 @@ const GasLimit = 6000000
 async function main (): Promise<void> {
   // const lockedAmount = ethers.utils.parseEther("1");
   const [owner] = await ethers.getSigners()
-  console.log('deploy with accoiunt: ', owner.address)
+  console.log('deploy with account: ', owner.address)
 
   const factory = await ethers.getContractFactory(BloctoAccountCloneableWallet)
   const walletCloneable = await factory.deploy(EntryPoint, {
@@ -37,7 +37,7 @@ async function main (): Promise<void> {
 
   const entrypoint = EntryPoint__factory.connect(EntryPoint, ethers.provider)
   const depositInfo = await entrypoint.getDepositInfo(accountFactory.address)
-  console.log(depositInfo)
+  console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

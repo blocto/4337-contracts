@@ -10,6 +10,7 @@
     "lint-fix": "eslint -f unix . --fix",
     "lint:sol": "solhint -f unix \"contracts/**/*.sol\" --max-warnings 0",
     "test": "hardhat test",
+    "deploy": "hardhat run deploy/0_deploy_Account_Factory-and-addStake.ts",
     "deploy-bloctoaccountcloneable": "hardhat run deploy/1_deploy_BloctoAccount4337CloneableWallet.ts",
     "deploy-bloctoaccountfactory": "hardhat run deploy/2_deploy_BloctoAccountFactory.ts",
     "deploy-verifyingpaymaster": "hardhat run deploy/3_deploy_VerifyingPaymaster.ts",

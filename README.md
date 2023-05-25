@@ -10,17 +10,10 @@ yarn test
 
 ## Deploy 
 
-deploy BloctoAccountCloneableWallet
+deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
 
 ```
-yarn deploy-bloctoaccountcloneable --network mumbai
-```
-
-
-deploy BloctoAccountFactory
-
-```
-yarn deploy-bloctoaccountfactory --network mumbai
+yarn deploy --network mumbai 
 ```
 
 

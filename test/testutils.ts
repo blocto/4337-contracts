@@ -105,6 +105,14 @@ export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAdd
   ])
 }
 
+// helper function to create the initCode to deploy the account, using our account factory.
+export function getAccountInitCode2 (factory: BloctoAccountFactory, authorizedAddresses: BytesLike, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
+  return hexConcat([
+    factory.address,
+    factory.interface.encodeFunctionData('createAccount2', [authorizedAddresses, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
+  ])
+}
+
 // given the parameters as AccountDeployer, return the resulting "counterfactual address" that it would create.
 export async function getAccountAddress (factory: BloctoAccountFactory, cosignerAddress: string, recoveryAddress: string, salt = 0): Promise<string> {
   return await factory.getAddress(cosignerAddress, recoveryAddress, BigNumber.from(salt))

@@ -46,6 +46,35 @@ contract BloctoAccountFactory is Ownable {
         emit WalletCreated(address(ret), _authorizedAddress, false);
     }
 
+    function createAccount2(
+        bytes memory _authorizedAddresses,
+        address _cosigner,
+        address _recoveryAddress,
+        uint256 _salt
+    ) public returns (BloctoAccount ret) {
+        require(
+            _authorizedAddresses.length / 20 > 0 && _authorizedAddresses.length % 20 == 0, "invalid address byte array"
+        );
+
+        address addr = getAddress(_cosigner, _recoveryAddress, _salt);
+        uint256 codeSize = addr.code.length;
+        if (codeSize > 0) {
+            return BloctoAccount(payable(addr));
+        }
+        bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
+        // for consistent address
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
+        newProxy.initImplementation(bloctoAccountImplementation);
+        ret = BloctoAccount(payable(address(newProxy)));
+        ret.init2(_authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress);
+
+        address firstAuthorizedAddress;
+        assembly {
+            firstAuthorizedAddress := mload(add(_authorizedAddresses, 20))
+        }
+        emit WalletCreated(address(ret), firstAuthorizedAddress, false);
+    }
+
     /**
      * calculate the counterfactual address of this account as it would be returned by createAccount()
      */

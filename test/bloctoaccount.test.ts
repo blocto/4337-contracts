@@ -13,6 +13,7 @@ import {
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
   fund,
+  createTmpAccount,
   createAccount,
   deployEntryPoint,
   ONE_ETH,
@@ -20,6 +21,7 @@ import {
   txData,
   signMessage
 } from './testutils'
+import { hexConcat } from 'ethers/lib/utils'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -80,6 +82,24 @@ describe('BloctoAccount Upgrade Test', function () {
       const receivedSelector = ethers.utils.id('Received(address,uint256)')
       expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should create account with multiple authorized address', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const authorizedWallet22 = createTmpAccount()
+
+      const addresses = hexConcat([authorizedWallet2.address, authorizedWallet22.address])
+      const tx = await factory.createAccount2(addresses, cosignerWallet2.address, recoverWallet2.address, AccountSalt)
+      const receipt = await tx.wait()
+
+      let findWalletCreated = false
+      receipt.events?.forEach((event) => {
+        if (event.event === 'WalletCreated' &&
+            event.args?.authorizedAddress === authorizedWallet2.address) {
+          findWalletCreated = true
+        }
+      })
+      expect(findWalletCreated).true
     })
   })
 
