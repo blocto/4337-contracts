@@ -12,7 +12,6 @@ import "./BloctoAccount.sol";
 contract BloctoAccountFactory is Ownable {
     /// @notice This is the version of this contract.
     string public constant VERSION = "1.3.0";
-    // address public accountImplementation;
     address public bloctoAccountImplementation;
     IEntryPoint public entryPoint;
 
@@ -57,10 +56,18 @@ contract BloctoAccountFactory is Ownable {
         );
     }
 
+    /**
+     * set the implementation of the BloctoAccountProxy
+     * @param _bloctoAccountImplementation target to send to
+     */
     function setImplementation(address _bloctoAccountImplementation) public onlyOwner {
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
+    /**
+     * set the entrypoint
+     * @param _entrypoint target entrypoint
+     */
     function setEntrypoint(IEntryPoint _entrypoint) public onlyOwner {
         entryPoint = _entrypoint;
     }

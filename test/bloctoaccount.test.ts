@@ -4,12 +4,9 @@ import { expect } from 'chai'
 import {
   BloctoAccount,
   BloctoAccount__factory,
-  BloctoAccountCloneableWallet,
   BloctoAccountCloneableWallet__factory,
   BloctoAccountFactory,
   BloctoAccountFactory__factory,
-  TestERC20,
-  TestERC20__factory,
   TestBloctoAccountCloneableWalletV140,
   TestBloctoAccountCloneableWalletV140__factory
 } from '../typechain'
@@ -17,21 +14,12 @@ import { EntryPoint } from '@account-abstraction/contracts'
 import {
   fund,
   createAccount,
-  createAddress,
-  createAccountOwner,
   deployEntryPoint,
-  getBalance,
-  isDeployed,
   ONE_ETH,
-  TWO_ETH,
-  HashZero,
   createAuthorizedCosignerRecoverWallet,
-  getSetEntryPointCode,
   txData,
-  signMessage,
-  signUpgrade
+  signMessage
 } from './testutils'
-// import { fillUserOpDefaults, getUserOpHash, signMessage, signUpgrade } from './UserOp'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -66,14 +54,11 @@ describe('BloctoAccount Upgrade Test', function () {
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
 
     // account factory
-    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation);
+    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation, entryPoint.address);
 
     // 3 wallet
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
     await fund(cosignerWallet.address)
-
-    // test erc20
-    // erc20 = await new TestERC20__factory(ethersSigner).deploy('Test ERC20', 'T20', 18)
   })
 
   describe('wallet function', () => {

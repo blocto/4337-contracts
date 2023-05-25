@@ -23,23 +23,34 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
 
     IEntryPoint private immutable _entryPoint;
 
+    /**
+     * constructor for BloctoAccount
+     * @param anEntryPoint entrypoint address
+     */
     constructor(IEntryPoint anEntryPoint) {
         _entryPoint = anEntryPoint;
     }
 
     /**
      * override from UUPSUpgradeable
+     * @param newImplementation implementation address
      */
     function _authorizeUpgrade(address newImplementation) internal view override onlyInvoked {
         (newImplementation);
     }
 
+    /**
+     * return entrypoint
+     */
     function entryPoint() public view virtual override returns (IEntryPoint) {
         return _entryPoint;
     }
 
     /**
      * execute a transaction (called directly by entryPoint)
+     * @param dest dest call address
+     * @param value value to send
+     * @param func the func containing the transaction to be called
      */
     function execute(address dest, uint256 value, bytes calldata func) external {
         _requireFromEntryPoint();
@@ -48,6 +59,8 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
 
     /**
      * execute a sequence of transactions (called directly by entryPoint)
+     * @param dest sequence of dest call address
+     * @param func sequence of the func containing transactions to be called
      */
     function executeBatch(address[] calldata dest, bytes[] calldata func) external {
         _requireFromEntryPoint();
@@ -57,7 +70,12 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
         }
     }
 
-    /// internal call for execute and executeBatch
+    /**
+     * internal call for execute and executeBatch
+     * @param target target call address
+     * @param value value to send
+     * @param data the data containing the transaction to be called
+     */
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
@@ -67,7 +85,11 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
         }
     }
 
-    /// implement validate signature method of BaseAccount
+    /**
+     * implement validate signature method of BaseAccount from etnrypoint
+     * @param userOp user operation including signature for validating
+     * @param userOpHash user operation hash
+     */
     function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash)
         internal
         virtual

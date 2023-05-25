@@ -85,7 +85,7 @@ describe('EntryPoint', function () {
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
 
     // account factory
-    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation);
+    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation, entryPoint.address);
 
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
     account = await createAccount(

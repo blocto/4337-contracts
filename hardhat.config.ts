@@ -6,7 +6,7 @@ import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-storage-layout'
 import 'solidity-coverage'
 
-import * as fs from 'fs'
+// import * as fs from 'fs'
 
 const {
   ETHERSCAN_API_KEY, // etherscan API KEY
@@ -15,30 +15,6 @@ const {
   SNOWTRACE_API_KEY, // avalanche scan (snowtrace) API KEY
   ARBSCAN_API_KEY // arbitrum scan API KEY
 } = process.env
-
-const mnemonicFileName = process.env.MNEMONIC_FILE ?? `${process.env.HOME}/.secret/testnet-mnemonic.txt`
-let mnemonic = 'test '.repeat(11) + 'junk'
-if (fs.existsSync(mnemonicFileName)) { mnemonic = fs.readFileSync(mnemonicFileName, 'ascii') }
-
-function getNetwork1 (url: string): { url: string, accounts: { mnemonic: string } } {
-  return {
-    url,
-    accounts: { mnemonic }
-  }
-}
-
-function getNetwork (name: string): { url: string, accounts: { mnemonic: string } } {
-  return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`)
-  // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`)
-}
-
-const optimizedComilerSettings = {
-  version: '0.8.17',
-  settings: {
-    optimizer: { enabled: true, runs: 1000000 },
-    viaIR: true
-  }
-}
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -53,13 +29,9 @@ const config: HardhatUserConfig = {
     }]
   },
   networks: {
-    dev: { url: 'http://localhost:8545' },
-    // github action starts localgeth service, for gas calculations
-    localgeth: { url: 'http://localgeth:8545' },
-    goerli: getNetwork('goerli'),
-    sepolia: getNetwork('sepolia'),
-    proxy: getNetwork1('http://localhost:8545'),
-    // mumbai: getNetwork1('https://polygon-testnet.public.blastapi.io'),
+    hardhat: {
+      allowUnlimitedContractSize: true
+    },
     mumbai: {
       url: 'https://rpc.ankr.com/polygon_mumbai',
       accounts:
