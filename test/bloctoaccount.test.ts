@@ -70,6 +70,10 @@ describe('BloctoAccount Upgrade Test', function () {
       account = await testCreateAccount(AccountSalt)
     })
 
+    it('test gas', async () => {
+
+    })
+
     it('should receive native token', async () => {
       const beforeRecevive = await ethers.provider.getBalance(account.address)
       const [owner] = await ethers.getSigners()

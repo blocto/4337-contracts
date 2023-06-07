@@ -39,6 +39,12 @@ verify VerifyingPaymaster
 yarn verify-verifyingpaymaster --network mumbai
 ```
 
+## Schnorr Multi Sign Test
+
+```
+npx hardhat test test/schnorrMultiSign.test.ts 
+```
+
 ## Tool
 
 check storage layout

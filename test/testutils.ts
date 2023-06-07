@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat'
+import { ethers, config } from 'hardhat'
 import {
   arrayify,
   hexConcat,
@@ -60,12 +60,16 @@ export async function getTokenBalance (token: IERC20, address: string): Promise<
   return parseInt(balance.toString())
 }
 
-let counter = 0
+let counter = -1
 
 export function createTmpAccount (): Wallet {
   const privateKey = keccak256(Buffer.from(arrayify(BigNumber.from(++counter))))
   return new ethers.Wallet(privateKey, ethers.provider)
-  // return new ethers.Wallet('0x'.padEnd(66, privkeyBase), ethers.provider);
+  // const accounts: any = config.networks.hardhat.accounts
+  // console.log('accounts.path: ', accounts.path)
+  // console.log('accounts.mnemonic: ', accounts.mnemonic)
+  // counter++
+  // return ethers.Wallet.fromMnemonic(accounts.mnemonic, accounts.path + `/${counter}`)
 }
 
 // create non-random account, so gas calculations are deterministic
@@ -258,9 +262,14 @@ export async function createAccount (
   cosignerAddresses: string,
   recoverAddresses: string,
   salt: BigNumberish,
+  mergedKeyIndexWithParity: number,
+  mergedKey: string,
   accountFactory: BloctoAccountFactory
 ): Promise<BloctoAccount> {
-  await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt)
+  const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
+  // console.log('tx: ', tx)
+  const receipt = await tx.wait()
+  console.log('receipt gasUsed: ', receipt.gasUsed)
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account
@@ -299,17 +308,7 @@ export const txData = (revert: number, to: string, amount: BigNumber, dataBuff: 
 
 export const EIP191V0MessagePrefix = '\x19\x00'
 export function hashMessageEIP191V0 (address: string, message: Bytes | string): string {
-  if (typeof (message) === 'string') {
-    message = toUtf8Bytes(message)
-  }
   address = address.replace('0x', '')
-
-  // const tx = concat([
-  //   toUtf8Bytes(EIP191V0MessagePrefix),
-  //   Uint8Array.from(Buffer.from(address, 'hex')),
-  //   message
-  // ])
-  // console.log('hashMessageEIP191V0 tx', tx)
 
   return keccak256(concat([
     toUtf8Bytes(EIP191V0MessagePrefix),
@@ -342,4 +341,8 @@ export async function signMessage (signerWallet: Wallet, accountAddress: string,
   // console.log('dataForHash: ', dataForHash)
   const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0(accountAddress, dataForHash))
   return sign
+}
+
+export function logBytes (uint8: Uint8Array): string {
+  return Buffer.from(uint8).toString('hex') + '(' + uint8.length.toString() + ')'
 }

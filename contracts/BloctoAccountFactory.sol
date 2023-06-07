@@ -28,52 +28,53 @@ contract BloctoAccountFactory is Ownable {
      * Note that during UserOperation execution, this method is called only if the account is not deployed.
      * This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
      */
-    function createAccount(address _authorizedAddress, address _cosigner, address _recoveryAddress, uint256 _salt)
-        public
-        returns (BloctoAccount ret)
-    {
-        address addr = getAddress(_cosigner, _recoveryAddress, _salt);
-        uint256 codeSize = addr.code.length;
-        if (codeSize > 0) {
-            return BloctoAccount(payable(addr));
-        }
+    function createAccount(
+        address _authorizedAddress,
+        address _cosigner,
+        address _recoveryAddress,
+        uint256 _salt,
+        uint256 _mergedKeyIndexWithParity,
+        bytes32 _mergedKey
+    ) public onlyOwner returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // for consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
         newProxy.initImplementation(bloctoAccountImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
-        ret.init(_authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress);
+        ret.init(
+            _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
+        );
         emit WalletCreated(address(ret), _authorizedAddress, false);
     }
 
-    function createAccount2(
-        bytes memory _authorizedAddresses,
-        address _cosigner,
-        address _recoveryAddress,
-        uint256 _salt
-    ) public returns (BloctoAccount ret) {
-        require(
-            _authorizedAddresses.length / 20 > 0 && _authorizedAddresses.length % 20 == 0, "invalid address byte array"
-        );
+    // function createAccount2(
+    //     bytes memory _authorizedAddresses,
+    //     address _cosigner,
+    //     address _recoveryAddress,
+    //     uint256 _salt
+    // ) public returns (BloctoAccount ret) {
+    //     require(
+    //         _authorizedAddresses.length / 20 > 0 && _authorizedAddresses.length % 20 == 0, "invalid address byte array"
+    //     );
 
-        address addr = getAddress(_cosigner, _recoveryAddress, _salt);
-        uint256 codeSize = addr.code.length;
-        if (codeSize > 0) {
-            return BloctoAccount(payable(addr));
-        }
-        bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
-        // for consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
-        newProxy.initImplementation(bloctoAccountImplementation);
-        ret = BloctoAccount(payable(address(newProxy)));
-        ret.init2(_authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress);
+    //     address addr = getAddress(_cosigner, _recoveryAddress, _salt);
+    //     uint256 codeSize = addr.code.length;
+    //     if (codeSize > 0) {
+    //         return BloctoAccount(payable(addr));
+    //     }
+    //     bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
+    //     // for consistent address
+    //     BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
+    //     newProxy.initImplementation(bloctoAccountImplementation);
+    //     ret = BloctoAccount(payable(address(newProxy)));
+    //     ret.init2(_authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress);
 
-        address firstAuthorizedAddress;
-        assembly {
-            firstAuthorizedAddress := mload(add(_authorizedAddresses, 20))
-        }
-        emit WalletCreated(address(ret), firstAuthorizedAddress, false);
-    }
+    //     address firstAuthorizedAddress;
+    //     assembly {
+    //         firstAuthorizedAddress := mload(add(_authorizedAddresses, 20))
+    //     }
+    //     emit WalletCreated(address(ret), firstAuthorizedAddress, false);
+    // }
 
     /**
      * calculate the counterfactual address of this account as it would be returned by createAccount()
