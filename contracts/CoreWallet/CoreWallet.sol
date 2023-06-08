@@ -66,7 +66,7 @@ contract CoreWallet is IERC1271 {
     ///  "authorized addresses".
     mapping(uint256 => uint256) public authorizations;
 
-    // (authVersion,96)(padding_0,153)(authKeyIdx,6)(parity,1) -> merged_ec_pubkey_x (256)
+    // (authVersion,96)(padding_0,152)(authKeyIdx,7)(parity,1) -> merged_ec_pubkey_x (256)
     mapping(uint256 => bytes32) public mergedKeys;
 
     /// @notice A per-key nonce value, incremented each time a transaction is processed with that key.
@@ -192,7 +192,7 @@ contract CoreWallet is IERC1271 {
         address _authorizedAddress,
         uint256 _cosigner,
         address _recoveryAddress,
-        uint256 _mergedKeyIndexWithPairty,
+        uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public onlyOnce {
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
@@ -202,7 +202,7 @@ contract CoreWallet is IERC1271 {
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
         // add initial authorized address
-        this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithPairty, _mergedKey);
+        this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithParity, _mergedKey);
     }
 
     function bytesToAddresses(bytes memory bys) private pure returns (address[] memory addresses) {
@@ -305,7 +305,7 @@ contract CoreWallet is IERC1271 {
     function setAuthorized(
         address _authorizedAddress,
         uint256 _cosigner,
-        uint256 _mergedIndexWithParity,
+        uint8 _mergedIndexWithParity,
         bytes32 _mergedKey
     ) external onlyInvoked {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");

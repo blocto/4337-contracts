@@ -33,7 +33,7 @@ contract BloctoAccountFactory is Ownable {
         address _cosigner,
         address _recoveryAddress,
         uint256 _salt,
-        uint256 _mergedKeyIndexWithParity,
+        uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public onlyOwner returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));

@@ -49,14 +49,14 @@ describe('Schnorr MultiSign Test', function () {
     const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
     const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
     // because of the parity byte is 2, 3 so sub 2
-    const pxIndexWithPairty = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
+    const pxIndexWithParity = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
     const account = await createAccount(
       ethersSigner,
       await authorizedWallet.getAddress(),
       await cosignerWallet.getAddress(),
       await recoverWallet.getAddress(),
       BigNumber.from(123),
-      pxIndexWithPairty,
+      pxIndexWithParity,
       px,
       factory
     )
@@ -72,14 +72,14 @@ describe('Schnorr MultiSign Test', function () {
     const sSummed = Schnorrkel.sumSigs([sigOne, sigTwo])
 
     // wrap the result
-    // e (bytes32), s (bytes32), pxIndexWithPairty (uint8)
-    // pxIndexWithPairty (7 bit for pxIndex, 1 bit for parity)
-    const hexPxIndexWithPairty = ethers.utils.hexlify(pxIndexWithPairty).slice(-2)
+    // e (bytes32), s (bytes32), pxIndexWithParity (uint8)
+    // pxIndexWithParity (7 bit for pxIndex, 1 bit for parity)
+    const hexPxIndexWithParity = ethers.utils.hexlify(pxIndexWithParity).slice(-2)
     const abiCoder = new ethers.utils.AbiCoder()
     const sigData = abiCoder.encode(['bytes32', 'bytes32'], [
       e.buffer,
       sSummed.buffer
-    ]) + hexPxIndexWithPairty
+    ]) + hexPxIndexWithParity
     const result = await account.isValidSignature(msgKeccak256, sigData)
     expect(result).to.equal(ERC1271_MAGICVALUE_BYTES32)
   })
@@ -97,14 +97,14 @@ describe('Schnorr MultiSign Test', function () {
     const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
     const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
     // because of the parity byte is 2, 3 so sub 2
-    const pxIndexWithPairty = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
+    const pxIndexWithParity = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
     const account = await createAccount(
       ethersSigner,
       await authorizedWallet.getAddress(),
       await cosignerWallet.getAddress(),
       await recoverWallet.getAddress(),
       BigNumber.from(123),
-      pxIndexWithPairty,
+      pxIndexWithParity,
       px,
       factory
     )
@@ -120,14 +120,14 @@ describe('Schnorr MultiSign Test', function () {
     const sSummed = Schnorrkel.sumSigs([sigOne, sigTwo])
 
     // wrap the result
-    // e (bytes32), s (bytes32), pxIndexWithPairty (uint8)
-    // pxIndexWithPairty (7 bit for pxIndex, 1 bit for parity)
-    const hexPxIndexWithPairty = ethers.utils.hexlify(pxIndexWithPairty).slice(-2)
+    // e (bytes32), s (bytes32), pxIndexWithParity (uint8)
+    // pxIndexWithParity (7 bit for pxIndex, 1 bit for parity)
+    const hexPxIndexWithParity = ethers.utils.hexlify(pxIndexWithParity).slice(-2)
     const abiCoder = new ethers.utils.AbiCoder()
     const sigData = abiCoder.encode(['bytes32', 'bytes32'], [
       e.buffer,
       sSummed.buffer
-    ]) + hexPxIndexWithPairty
+    ]) + hexPxIndexWithParity
     const result = await account.isValidSignature(msgKeccak256, sigData)
     expect(result).to.equal(ERC1271_MAGICVALUE_BYTES32)
   })
