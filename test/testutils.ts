@@ -60,7 +60,7 @@ export async function getTokenBalance (token: IERC20, address: string): Promise<
   return parseInt(balance.toString())
 }
 
-let counter = -1
+let counter = 0 // Math.floor(Math.random() * 5000)
 
 export function createTmpAccount (): Wallet {
   const privateKey = keccak256(Buffer.from(arrayify(BigNumber.from(++counter))))
@@ -269,7 +269,7 @@ export async function createAccount (
   const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
   // console.log('tx: ', tx)
   const receipt = await tx.wait()
-  console.log('receipt gasUsed: ', receipt.gasUsed)
+  // console.log('createAccount gasUsed: ', receipt.gasUsed)
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account

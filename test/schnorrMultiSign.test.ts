@@ -38,9 +38,8 @@ describe('Schnorr MultiSign Test', function () {
 
   it('should generate a schnorr musig2 and validate it on the blockchain', async () => {
     // create account
-    // for only 1 byte
-    const mergedKeyIndex = 0 << 1
-
+    // for only 1 byte, (isSchnorr,1)(authKeyIdx,6)(parity,1)
+    const mergedKeyIndex = 128 + (0 << 1)
     const [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
     const signerOne = new DefaultSigner(authorizedWallet)
     const signerTwo = new DefaultSigner(cosignerWallet)
@@ -86,8 +85,8 @@ describe('Schnorr MultiSign Test', function () {
 
   it('check none zero mergedKeyIndex', async () => {
     // create account
-    // for only 1 byte
-    const mergedKeyIndex = 2 << 1
+    // for only 1 byte, (isSchnorr,1)(authKeyIdx,6)(parity,1)
+    const mergedKeyIndex = 128 + (2 << 1)
     // following same as test 'should generate a schnorr musig2 and validate it on the blockchain'
     const [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
     const signerOne = new DefaultSigner(authorizedWallet)

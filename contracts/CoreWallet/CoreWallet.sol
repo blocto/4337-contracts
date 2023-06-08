@@ -66,7 +66,8 @@ contract CoreWallet is IERC1271 {
     ///  "authorized addresses".
     mapping(uint256 => uint256) public authorizations;
 
-    // (authVersion,96)(padding_0,152)(authKeyIdx,7)(parity,1) -> merged_ec_pubkey_x (256)
+    // (authVersion,96)(padding_0,152)(isSchnorr,1) (authKeyIdx,6)(parity,1) -> merged_ec_pubkey_x (256)
+    // isisSchnorr: 1 -> schnnor, 0 -> not schnorr
     mapping(uint256 => bytes32) public mergedKeys;
 
     /// @notice A per-key nonce value, incremented each time a transaction is processed with that key.
@@ -470,36 +471,46 @@ contract CoreWallet is IERC1271 {
         // https://github.com/gnosis/safe-contracts/blob/102e632d051650b7c4b0a822123f449beaf95aed/contracts/GnosisSafe.sol
         bytes32 operationHash = keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, _hash));
 
-        if (_signature.length == 65) {
+        if (_signature.length == 65 && (_signature[64] & 0x80) > 0) {
             return verifySchnorr(operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
+        }
+
+        bytes32[2] memory r;
+        bytes32[2] memory s;
+        uint8[2] memory v;
+        address signer;
+        address cosigner;
+
+        // extract 1 or 2 signatures depending on length
+        if (_signature.length == 65) {
+            (r[0], s[0], v[0]) = _signature.extractSignature(0);
+            signer = ecrecover(operationHash, v[0], r[0], s[0]);
+            cosigner = signer;
         } else if (_signature.length == 130) {
-            bytes32[2] memory r;
-            bytes32[2] memory s;
-            uint8[2] memory v;
-            address signer;
-            address cosigner;
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
             (r[1], s[1], v[1]) = _signature.extractSignature(65);
             signer = ecrecover(operationHash, v[0], r[0], s[0]);
             cosigner = ecrecover(operationHash, v[1], r[1], s[1]);
-            // check for valid signature
-            if (signer == address(0)) {
-                return 0;
-            }
-
-            // check for valid signature
-            if (cosigner == address(0)) {
-                return 0;
-            }
-
-            // check to see if this is an authorized key
-            if (address(uint160(authorizations[authVersion + uint256(uint160(signer))])) != cosigner) {
-                return 0;
-            }
-
-            return IERC1271.isValidSignature.selector;
+        } else {
+            return 0;
         }
-        return 0;
+
+        // check for valid signature
+        if (signer == address(0)) {
+            return 0;
+        }
+
+        // check for valid signature
+        if (cosigner == address(0)) {
+            return 0;
+        }
+
+        // check to see if this is an authorized key
+        if (address(uint160(authorizations[authVersion + uint256(uint160(signer))])) != cosigner) {
+            return 0;
+        }
+
+        return IERC1271.isValidSignature.selector;
     }
 
     /// @notice A version of `invoke()` that has no explicit signatures, and uses msg.sender
