@@ -299,17 +299,7 @@ export const txData = (revert: number, to: string, amount: BigNumber, dataBuff: 
 
 export const EIP191V0MessagePrefix = '\x19\x00'
 export function hashMessageEIP191V0 (address: string, message: Bytes | string): string {
-  if (typeof (message) === 'string') {
-    message = toUtf8Bytes(message)
-  }
   address = address.replace('0x', '')
-
-  // const tx = concat([
-  //   toUtf8Bytes(EIP191V0MessagePrefix),
-  //   Uint8Array.from(Buffer.from(address, 'hex')),
-  //   message
-  // ])
-  // console.log('hashMessageEIP191V0 tx', tx)
 
   return keccak256(concat([
     toUtf8Bytes(EIP191V0MessagePrefix),

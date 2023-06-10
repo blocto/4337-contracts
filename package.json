@@ -15,11 +15,12 @@
     "deploy-bloctoaccountfactory": "hardhat run deploy/2_deploy_BloctoAccountFactory.ts",
     "deploy-verifyingpaymaster": "hardhat run deploy/3_deploy_VerifyingPaymaster.ts",
     "verify-bloctoaccountcloneable": "npx hardhat verify --contract contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
-    "verify-accountfactory": "npx hardhat verify 0xC261555D0e4623BF709d3f22Bf58A6275CE4d17D 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+    "verify-bloctoaccountfactory": "npx hardhat verify 0xC261555D0e4623BF709d3f22Bf58A6275CE4d17D 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
     "verify-verifyingpaymaster": "npx hardhat verify 0xE671dEee9c758e642d50c32e13FD5fC6D42C98F1 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0x086443C6bA8165a684F3e316Da42D3A2F0a2330a"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",
+    "@ethereumjs/util": "^8.0.6",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/hardhat-upgrades": "^1.23.0",
@@ -38,6 +39,7 @@
     "eslint-plugin-standard": "^5.0.0",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.2",
+    "ethjs-util": "^0.1.6",
     "hardhat": "^2.6.6",
     "hardhat-storage-layout": "^0.1.7",
     "solhint": "^3.3.7",
