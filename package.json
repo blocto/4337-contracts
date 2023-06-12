@@ -1,7 +1,7 @@
 {
   "name": "bloctoaccount",
   "version": "0.6.0",
-  "description": "BloctoAccount & BloctoAccountFactory smart contract",
+  "description": "BloctoAccount & BloctoAccountFactory smart contracts",
   "scripts": {
     "clean": "rm -rf cache artifacts typechain typechain-types",
     "tsc": "tsc",
@@ -9,13 +9,18 @@
     "lint:js": "eslint -f unix .",
     "lint-fix": "eslint -f unix . --fix",
     "lint:sol": "solhint -f unix \"contracts/**/*.sol\" --max-warnings 0",
-    "test": "hardhat test ",
-    "deploy-accountfactory": "hardhat run deploy/deploy-BloctoAccountFactory.ts",
-    "verify-accountfactory": "npx hardhat verify 0xf8915e6896fb575a95246793b150c56e2666da11 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 ",
-    "verify-verifyingpaymaster": "npx hardhat verify 0x214cC14b7312855c7F5FF156757B2eeeB938048D 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0xec53Efb202a4427bae100776BA920A5938E9d509"
+    "test": "hardhat test",
+    "deploy": "hardhat run deploy/0_deploy_Account_Factory-and-addStake.ts",
+    "deploy-bloctoaccountcloneable": "hardhat run deploy/1_deploy_BloctoAccount4337CloneableWallet.ts",
+    "deploy-bloctoaccountfactory": "hardhat run deploy/2_deploy_BloctoAccountFactory.ts",
+    "deploy-verifyingpaymaster": "hardhat run deploy/3_deploy_VerifyingPaymaster.ts",
+    "verify-bloctoaccountcloneable": "npx hardhat verify --contract contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+    "verify-bloctoaccountfactory": "npx hardhat verify 0xC261555D0e4623BF709d3f22Bf58A6275CE4d17D 0x66d4d44e4957F70dF0127b3de2dBaD9fF9058B5B 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
+    "verify-verifyingpaymaster": "npx hardhat verify 0xE671dEee9c758e642d50c32e13FD5fC6D42C98F1 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 0x086443C6bA8165a684F3e316Da42D3A2F0a2330a"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",
+    "@ethereumjs/util": "^8.0.6",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/hardhat-upgrades": "^1.23.0",
@@ -34,7 +39,9 @@
     "eslint-plugin-standard": "^5.0.0",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.2",
+    "ethjs-util": "^0.1.6",
     "hardhat": "^2.6.6",
+    "hardhat-storage-layout": "^0.1.7",
     "solhint": "^3.3.7",
     "ts-generator": "^0.1.1",
     "ts-mocha": "^10.0.0",

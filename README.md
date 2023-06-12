@@ -1,23 +1,50 @@
 # BloctoAccount & BloctoAccountFactory
 
-## Test & Deploy
+## Test
 
 test
 ```
-npx hardhat test test/entrypoint.test.ts  
+yarn test
 ```
 
-deploy BloctoAccountFactory
+
+## Deploy 
+
+deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
 
 ```
-yarn deploy-accountfactory --network mumbai
+yarn deploy --network mumbai 
 ```
+
+
+deploy VerifyingPaymaster
+```
+yarn deploy-verifyingpaymaster --network mumbai 
+```
+
+
+verify BloctoAccountCloneableWallet
+```
+yarn  verify-bloctoaccountcloneable --network mumbai
+```
+
 
 verify BloctoAccountFactory
 ```
 yarn verify-accountfactory --network mumbai
 ```
 
+verify VerifyingPaymaster
+```
+yarn verify-verifyingpaymaster --network mumbai
+```
+
+## Tool
+
+check storage layout
+```
+npx hardhat check
+```
 
 ## Acknowledgement
 
