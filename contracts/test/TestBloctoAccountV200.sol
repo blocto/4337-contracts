@@ -15,11 +15,11 @@ import "../CoreWallet/CoreWallet.sol";
  * Blocto account.
  *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
  */
-contract TestBloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
+contract TestBloctoAccountV200 is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
     /**
      *  This is the version of this contract.
      */
-    string public constant VERSION = "1.4.0";
+    string public constant VERSION = "2.0.0";
 
     IEntryPoint private immutable _entryPoint;
 

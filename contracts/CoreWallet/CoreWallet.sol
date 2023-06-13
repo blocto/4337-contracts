@@ -67,7 +67,7 @@ contract CoreWallet is IERC1271 {
     mapping(uint256 => uint256) public authorizations;
 
     // (authVersion,96)(padding_0,152)(isSchnorr,1) (authKeyIdx,6)(parity,1) -> merged_ec_pubkey_x (256)
-    // isisSchnorr: 1 -> schnnor, 0 -> not schnorr
+    // isSchnorr: 1 -> schnorr, 0 -> not schnorr
     mapping(uint256 => bytes32) public mergedKeys;
 
     /// @notice A per-key nonce value, incremented each time a transaction is processed with that key.
@@ -147,7 +147,7 @@ contract CoreWallet is IERC1271 {
     /// @param cosigner the 2-of-2 signatory (optional).
     event Authorized(address authorizedAddress, uint256 cosigner);
 
-    event AuthorizedMeregedKey(uint256 authorizedAddress, uint256 mergedKey);
+    event AuthorizedMeregedKey(uint256 authorizedAddress, bytes32 mergedKey);
 
     /// @notice Emitted when an emergency recovery has been performed. If this event is fired,
     ///  ALL previously authorized addresses have been deauthorized and the only authorized
@@ -189,6 +189,8 @@ contract CoreWallet is IERC1271 {
     /// @param _authorizedAddress the initial authorized address, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
     /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _mergedKeyIndexWithParity the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKey the corresponding mergedKey (using Schnorr merged key)
     function init(
         address _authorizedAddress,
         uint256 _cosigner,
@@ -218,18 +220,31 @@ contract CoreWallet is IERC1271 {
         }
     }
 
-    // function init2(bytes memory _authorizedAddresses, uint256 _cosigner, address _recoveryAddress) public onlyOnce {
-    //     address[] memory addresses = bytesToAddresses(_authorizedAddresses);
-    //     recoveryAddress = _recoveryAddress;
-    //     // set initial authorization value
-    //     authVersion = AUTH_VERSION_INCREMENTOR;
-    //     for (uint256 i = 0; i < addresses.length; i++) {
-    //         address _authorizedAddress = addresses[i];
-    //         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-    //         require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
-    //         setAuthorized(_authorizedAddress, _cosigner, 0, bytes32(0));
-    //     }
-    // }
+    /// @notice The shared initialization code used to setup the contract state regardless of whether or
+    ///  not the clone pattern is being used.
+    /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
+    /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
+    /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _mergedKeyIndexWithParitys the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKeys the corresponding mergedKey
+    function init2(
+        address[] calldata _authorizedAddresses,
+        uint256 _cosigner,
+        address _recoveryAddress,
+        uint8[] calldata _mergedKeyIndexWithParitys,
+        bytes32[] calldata _mergedKeys
+    ) public onlyOnce {
+        require(_authorizedAddresses.length > 0, "invalid _authorizedAddresses array");
+        require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "Array length not match with.");
+        require(_authorizedAddresses.length == _mergedKeys.length, "Array length not match.");
+        recoveryAddress = _recoveryAddress;
+        // set initial authorization value
+        authVersion = AUTH_VERSION_INCREMENTOR;
+        for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
+            address _authorizedAddress = _authorizedAddresses[i];
+            this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithParitys[i], _mergedKeys[i]);
+        }
+    }
 
     /// @notice The fallback function, invoked whenever we receive a transaction that doesn't call any of our
     ///  named functions. In particular, this method is called when we are the target of a simple send
@@ -327,13 +342,12 @@ contract CoreWallet is IERC1271 {
     /// @dev Must be called through `invoke()`
     /// @param _meregedKeyIndex the merged key index
     /// @param _meregedKey the corresponding merged authorized key & cosigner key by Schnorr
-    // function setMergedKey(uint256 _meregedKeyIndex, uint256 _meregedKey) external onlyInvoked {
-    //     // require(_authorizedAddress != address(0), "Authorized address must not be zero.");
-    //     require(_meregedKey != 0, "Merged key must not be zero.");
+    function setMergedKey(uint256 _meregedKeyIndex, bytes32 _meregedKey) external onlyInvoked {
+        require(_meregedKey != 0, "Merged key must not be zero.");
 
-    //     mergedKeys[authVersion + _meregedKeyIndex] = _meregedKey;
-    //     emit AuthorizedMeregedKey(_meregedKeyIndex, _meregedKey);
-    // }
+        mergedKeys[authVersion + _meregedKeyIndex] = _meregedKey;
+        emit AuthorizedMeregedKey(_meregedKeyIndex, _meregedKey);
+    }
 
     /// @notice Performs an emergency recovery operation, removing all existing authorizations and setting
     ///  a sole new authorized address with optional cosigner. THIS IS A SCORCHED EARTH SOLUTION, and great

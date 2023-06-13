@@ -1,6 +1,6 @@
 import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { BigNumber } from 'ethers'
-import { ethers } from 'hardhat'
+import hre, { ethers } from 'hardhat'
 
 const BloctoAccountCloneableWallet = 'BloctoAccountCloneableWallet'
 const BloctoAccountFactory = 'BloctoAccountFactory'
@@ -12,8 +12,8 @@ async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
   console.log('deploy with account: ', owner.address)
 
-  const factory = await ethers.getContractFactory(BloctoAccountCloneableWallet)
-  const walletCloneable = await factory.deploy(EntryPoint, {
+  const BloctoAccountCloneableWalletContract = await ethers.getContractFactory(BloctoAccountCloneableWallet)
+  const walletCloneable = await BloctoAccountCloneableWalletContract.deploy(EntryPoint, {
     gasLimit: GasLimit
   })
 
@@ -38,6 +38,21 @@ async function main (): Promise<void> {
   const entrypoint = EntryPoint__factory.connect(EntryPoint, ethers.provider)
   const depositInfo = await entrypoint.getDepositInfo(accountFactory.address)
   console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
+
+  // verify BloctoAccountCloneableWallet
+  await hre.run('verify:verify', {
+    address: walletCloneable.address,
+    constructorArguments: [
+      EntryPoint
+    ]
+  })
+  // verify BloctoAccountFactory
+  await hre.run('verify:verify', {
+    address: accountFactory.address,
+    constructorArguments: [
+      walletCloneable.address, EntryPoint
+    ]
+  })
 }
 
 // We recommend this pattern to be able to use async/await everywhere

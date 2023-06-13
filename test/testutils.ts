@@ -21,6 +21,8 @@ import { toUtf8Bytes } from '@ethersproject/strings'
 
 import { expect } from 'chai'
 import { Create2Factory } from '../src/Create2Factory'
+import Schnorrkel from '../src/schnorrkel.js/index'
+import { DefaultSigner } from './schnorrUtils'
 
 export const AddressZero = ethers.constants.AddressZero
 export const HashZero = ethers.constants.HashZero
@@ -102,7 +104,7 @@ export async function calcGasUsage (rcpt: ContractReceipt, entryPoint: EntryPoin
 }
 
 // helper function to create the initCode to deploy the account, using our account factory.
-export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
+export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt, pxIndexWithParity, px): BytesLike {
   return hexConcat([
     factory.address,
     factory.interface.encodeFunctionData('createAccount', [authorizedAddress, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
@@ -268,7 +270,7 @@ export async function createAccount (
 ): Promise<BloctoAccount> {
   const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
   // console.log('tx: ', tx)
-  const receipt = await tx.wait()
+  // const receipt = await tx.wait()
   // console.log('createAccount gasUsed: ', receipt.gasUsed)
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
@@ -345,4 +347,16 @@ export async function signMessage (signerWallet: Wallet, accountAddress: string,
 
 export function logBytes (uint8: Uint8Array): string {
   return Buffer.from(uint8).toString('hex') + '(' + uint8.length.toString() + ')'
+}
+
+export function getMergedKey (wallet1: Wallet, wallet2: Wallet, mergedKeyIndex: number): [px: string, pxIndexWithParity: number] {
+  mergedKeyIndex = 128 + (mergedKeyIndex << 1)
+  const signerOne = new DefaultSigner(wallet1)
+  const signerTwo = new DefaultSigner(wallet2)
+  const publicKeys = [signerOne.getPublicKey(), signerTwo.getPublicKey()]
+  const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
+  const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
+  const pxIndexWithParity = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
+
+  return [px, pxIndexWithParity]
 }

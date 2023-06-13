@@ -7,8 +7,8 @@ import {
   BloctoAccountCloneableWallet__factory,
   BloctoAccountFactory,
   BloctoAccountFactory__factory,
-  TestBloctoAccountCloneableWalletV140,
-  TestBloctoAccountCloneableWalletV140__factory
+  TestBloctoAccountCloneableWalletV200,
+  TestBloctoAccountCloneableWalletV200__factory
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
@@ -19,9 +19,9 @@ import {
   ONE_ETH,
   createAuthorizedCosignerRecoverWallet,
   txData,
-  signMessage
+  signMessage,
+  getMergedKey
 } from './testutils'
-import { hexConcat } from 'ethers/lib/utils'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -35,13 +35,17 @@ describe('BloctoAccount Upgrade Test', function () {
 
   let entryPoint: EntryPoint
 
-  async function testCreateAccount (salt: number): Promise<BloctoAccount> {
+  async function testCreateAccount (salt = 0, mergedKeyIndex = 0): Promise<BloctoAccount> {
+    const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
+
     const account = await createAccount(
       ethersSigner,
       await authorizedWallet.getAddress(),
       await cosignerWallet.getAddress(),
       await recoverWallet.getAddress(),
       BigNumber.from(salt),
+      pxIndexWithParity,
+      px,
       factory
     )
     await fund(account)
@@ -92,8 +96,15 @@ describe('BloctoAccount Upgrade Test', function () {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
 
-      const addresses = hexConcat([authorizedWallet2.address, authorizedWallet22.address])
-      const tx = await factory.createAccount2(addresses, cosignerWallet2.address, recoverWallet2.address, AccountSalt)
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      const tx = await factory.createAccount2([authorizedWallet2.address, authorizedWallet22.address],
+        cosignerWallet2.address, recoverWallet2.address,
+        754264557, // random salt
+        [pxIndexWithParity, pxIndexWithParity2],
+        [px, px2])
+
       const receipt = await tx.wait()
 
       let findWalletCreated = false
@@ -111,13 +122,13 @@ describe('BloctoAccount Upgrade Test', function () {
     const AccountSalt = 12345
     const MockEntryPointV070 = '0x000000000000000000000000000000000000E070'
     let account: BloctoAccount
-    let implementationV140: TestBloctoAccountCloneableWalletV140
+    let implementationV200: TestBloctoAccountCloneableWalletV200
 
-    async function upgradeAccountToV140 (): Promise<void> {
+    async function upgradeAccountToV200 (): Promise<void> {
       const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
       const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
       const upgradeToData = txData(1, account.address, BigNumber.from(0),
-        account.interface.encodeFunctionData('upgradeTo', [implementationV140.address]))
+        account.interface.encodeFunctionData('upgradeTo', [implementationV200.address]))
 
       const sign = await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, upgradeToData)
       await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, upgradeToData)
@@ -126,21 +137,19 @@ describe('BloctoAccount Upgrade Test', function () {
     before(async () => {
       account = await testCreateAccount(AccountSalt)
       // mock new entry point version 0.7.0
-      implementationV140 = await new TestBloctoAccountCloneableWalletV140__factory(ethersSigner).deploy(MockEntryPointV070)
-      await factory.setImplementation(implementationV140.address)
+      implementationV200 = await new TestBloctoAccountCloneableWalletV200__factory(ethersSigner).deploy(MockEntryPointV070)
+      await factory.setImplementation(implementationV200.address)
     })
 
     it('upgrade fail if not by contract self', async () => {
       // upgrade revert even though upgrade by cosigner
-      await expect(account.connect(cosignerWallet).upgradeTo(implementationV140.address))
+      await expect(account.connect(cosignerWallet).upgradeTo(implementationV200.address))
         .to.revertedWith('must be called from `invoke()')
     })
 
     it('upgrade test', async () => {
-      expect(await account.VERSION()).to.eql('1.3.0')
-      await upgradeAccountToV140()
-      // accountV140 = BloctoAccount__factory.connect(account.address, ethersSigner)
-      expect(await account.VERSION()).to.eql('1.4.0')
+      await upgradeAccountToV200()
+      expect(await account.VERSION()).to.eql('2.0.0')
     })
 
     it('factory getAddress some be same', async () => {
@@ -152,16 +161,10 @@ describe('BloctoAccount Upgrade Test', function () {
     })
 
     it('new account get new version', async () => {
-      const randomSalt = '0x33384e5765b53776863ffa7c4965af012ded5be4000000000000000000000005'
-      const accountNew = await createAccount(
-        ethersSigner,
-        await authorizedWallet.getAddress(),
-        await cosignerWallet.getAddress(),
-        await recoverWallet.getAddress(),
-        randomSalt,
-        factory
-      )
-      expect(await accountNew.VERSION()).to.eql('1.4.0')
+      const randomSalt = 54326346
+      const accountNew = await testCreateAccount(randomSalt)
+
+      expect(await accountNew.VERSION()).to.eql('2.0.0')
     })
 
     it('should entrypoint be v070 address', async () => {
