@@ -208,18 +208,6 @@ contract CoreWallet is IERC1271 {
         this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithParity, _mergedKey);
     }
 
-    function bytesToAddresses(bytes memory bys) private pure returns (address[] memory addresses) {
-        addresses = new address[](bys.length/20);
-        for (uint256 i = 0; i < bys.length; i += 20) {
-            address addr;
-            uint256 end = i + 20;
-            assembly {
-                addr := mload(add(bys, end))
-            }
-            addresses[i / 20] = addr;
-        }
-    }
-
     /// @notice The shared initialization code used to setup the contract state regardless of whether or
     ///  not the clone pattern is being used.
     /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
