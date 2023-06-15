@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts/utils/Create2.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "./BloctoAccountProxy.sol";
-import "./BloctoAccount.sol";
+/* solhint-disable avoid-low-level-calls */
+/* solhint-disable no-inline-assembly */
+/* solhint-disable reason-string */
 
-// BloctoAccountFactory for creating BloctoAccountProxy
-contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
+import "../BloctoAccountFactory.sol";
+
+/// Test Blocto account Factory
+contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
     /// @notice this is the version of this contract.
-    string public constant VERSION = "1.4.0";
+    string public constant VERSION = "2.0.0";
     /// @notice the implementation address for BloctoAccountCloneableWallet
     address public bloctoAccountImplementation;
     /// @notice the address from EIP-4337 official implementation

@@ -5,8 +5,6 @@ import {
   BloctoAccount,
   BloctoAccount__factory,
   BloctoAccountCloneableWallet__factory,
-  BloctoAccountFactory,
-  BloctoAccountFactory__factory,
   TestBloctoAccountCloneableWalletV200,
   TestBloctoAccountCloneableWalletV200__factory
 } from '../typechain'
@@ -22,6 +20,7 @@ import {
   signMessage,
   getMergedKey
 } from './testutils'
+import '@openzeppelin/hardhat-upgrades'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -53,6 +52,9 @@ describe('BloctoAccount Upgrade Test', function () {
   }
 
   before(async function () {
+    // 3 wallet
+    [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
+    await fund(cosignerWallet.address)
     // 4337
     entryPoint = await deployEntryPoint()
 
@@ -60,11 +62,8 @@ describe('BloctoAccount Upgrade Test', function () {
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
 
     // account factory
-    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation, entryPoint.address);
-
-    // 3 wallet
-    [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
-    await fund(cosignerWallet.address)
+    const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
   })
 
   describe('wallet function', () => {
@@ -72,10 +71,6 @@ describe('BloctoAccount Upgrade Test', function () {
     let account: BloctoAccount
     before(async () => {
       account = await testCreateAccount(AccountSalt)
-    })
-
-    it('test gas', async () => {
-
     })
 
     it('should receive native token', async () => {
@@ -118,7 +113,7 @@ describe('BloctoAccount Upgrade Test', function () {
     })
   })
 
-  describe('should upgrade to different version implementation', () => {
+  describe('should upgrade account to different version implementation', () => {
     const AccountSalt = 12345
     const MockEntryPointV070 = '0x000000000000000000000000000000000000E070'
     let account: BloctoAccount
@@ -169,6 +164,22 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should entrypoint be v070 address', async () => {
       expect(await account.entryPoint()).to.eql(MockEntryPointV070)
+    })
+  })
+
+  describe('should upgrade factory to different version implementation', () => {
+    const TestSalt = 135341
+
+    it('new factory get new version but same acccount address', async () => {
+      const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
+
+      const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
+      const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
+
+      expect(await factoryV200.VERSION()).to.eql('2.0.0')
+
+      const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
+      expect(beforeAccountAddr).to.eql(afterAccountAddr)
     })
   })
 })

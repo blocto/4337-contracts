@@ -4,8 +4,7 @@ import { BigNumber } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccountCloneableWallet__factory,
-  BloctoAccountFactory,
-  BloctoAccountFactory__factory
+  BloctoAccountFactory
 } from '../typechain'
 import {
   createAccount,
@@ -33,7 +32,8 @@ describe('Schnorr MultiSign Test', function () {
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
 
     // account factory
-    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation, entryPoint.address)
+    const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
   })
 
   it('should generate a schnorr musig2 and validate it on the blockchain', async () => {

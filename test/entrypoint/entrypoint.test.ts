@@ -70,7 +70,8 @@ describe('EntryPoint', function () {
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
 
     // account factory
-    factory = await new BloctoAccountFactory__factory(ethersSigner).deploy(implementation, entryPoint.address);
+    const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' });
 
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
