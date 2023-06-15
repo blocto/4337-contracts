@@ -22,10 +22,9 @@ async function main (): Promise<void> {
   console.log(`${BloctoAccountCloneableWallet} deployed to: ${walletCloneable.address}`)
 
   // account factory
-  const AccountFactory = await ethers.getContractFactory(BloctoAccountFactory)
-  const accountFactory = await AccountFactory.deploy(walletCloneable.address, EntryPoint, {
-    gasLimit: GasLimit
-  })
+  const BloctoAccountFactoryContract = await ethers.getContractFactory(BloctoAccountFactory)
+  const accountFactory = await upgrades.deployProxy(BloctoAccountFactoryContract, ['0x515E96E561837Db9080E254db2Afd14B89D1ef68', EntryPoint],
+    { initializer: 'initialize', gasLimit: GasLimit })
 
   await accountFactory.deployed()
 
