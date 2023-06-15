@@ -318,7 +318,6 @@ contract CoreWallet is IERC1271 {
             address(uint160(_cosigner)) == address(0) || address(uint160(_cosigner)) != recoveryAddress,
             "Do not use the recovery address as a cosigner."
         );
-        require(_mergedKey != 0, "MergedKey must not be zero.");
 
         authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
         mergedKeys[authVersion + _mergedIndexWithParity] = _mergedKey;
@@ -331,8 +330,6 @@ contract CoreWallet is IERC1271 {
     /// @param _meregedKeyIndex the merged key index
     /// @param _meregedKey the corresponding merged authorized key & cosigner key by Schnorr
     function setMergedKey(uint256 _meregedKeyIndex, bytes32 _meregedKey) external onlyInvoked {
-        require(_meregedKey != 0, "Merged key must not be zero.");
-
         mergedKeys[authVersion + _meregedKeyIndex] = _meregedKey;
         emit AuthorizedMeregedKey(_meregedKeyIndex, _meregedKey);
     }
