@@ -315,7 +315,8 @@ contract CoreWallet is IERC1271 {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(
-            address(uint160(_cosigner)) == address(0) || address(uint160(_cosigner)) != recoveryAddress,
+            (address(uint160(_cosigner)) == address(0) && _mergedKey == 0)
+                || address(uint160(_cosigner)) != recoveryAddress,
             "Do not use the recovery address as a cosigner."
         );
 
