@@ -6,8 +6,6 @@ import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-storage-layout'
 import 'solidity-coverage'
 
-// import * as fs from 'fs'
-
 const {
   ETHERSCAN_API_KEY, // etherscan API KEY
   POLYGONSCAN_API_KEY, // polygonscan API KEY
@@ -18,7 +16,6 @@ const {
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
-
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [{

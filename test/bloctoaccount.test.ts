@@ -60,7 +60,6 @@ describe('BloctoAccount Upgrade Test', function () {
 
     // v1 implementation
     implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
-
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
@@ -68,12 +67,9 @@ describe('BloctoAccount Upgrade Test', function () {
 
   describe('wallet function', () => {
     const AccountSalt = 123
-    let account: BloctoAccount
-    before(async () => {
-      account = await testCreateAccount(AccountSalt)
-    })
 
     it('should receive native token', async () => {
+      const account = await testCreateAccount(AccountSalt)
       const beforeRecevive = await ethers.provider.getBalance(account.address)
       const [owner] = await ethers.getSigners()
 
@@ -133,7 +129,19 @@ describe('BloctoAccount Upgrade Test', function () {
       account = await testCreateAccount(AccountSalt)
       // mock new entry point version 0.7.0
       implementationV200 = await new TestBloctoAccountCloneableWalletV200__factory(ethersSigner).deploy(MockEntryPointV070)
-      await factory.setImplementation(implementationV200.address)
+      // await factory.setImplementation(implementationV200.address)
+    })
+
+    it('new factory get new version and same acccount address', async () => {
+      const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
+      const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
+      const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
+
+      factory.setImplementation(implementationV200.address)
+      expect(await factory.VERSION()).to.eql('2.0.0')
+
+      const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
+      expect(beforeAccountAddr).to.eql(afterAccountAddr)
     })
 
     it('upgrade fail if not by contract self', async () => {
@@ -147,7 +155,7 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await account.VERSION()).to.eql('2.0.0')
     })
 
-    it('factory getAddress some be same', async () => {
+    it('factory getAddress sould be same', async () => {
       const addrFromFacotry = await factory.getAddress(
         await cosignerWallet.getAddress(),
         await recoverWallet.getAddress(),

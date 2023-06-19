@@ -270,8 +270,8 @@ export async function createAccount (
 ): Promise<BloctoAccount> {
   const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
   // console.log('tx: ', tx)
-  // const receipt = await tx.wait()
-  // console.log('createAccount gasUsed: ', receipt.gasUsed)
+  const receipt = await tx.wait()
+  console.log('createAccount gasUsed: ', receipt.gasUsed)
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account

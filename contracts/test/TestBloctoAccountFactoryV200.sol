@@ -11,7 +11,9 @@ import "../BloctoAccountFactory.sol";
 contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
     /// @notice this is the version of this contract.
     string public constant VERSION = "2.0.0";
-    /// @notice the implementation address for BloctoAccountCloneableWallet
+    /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
+    address public initImplementation;
+    /// @notice the implementation address of BloctoAccountCloneableWallet
     address public bloctoAccountImplementation;
     /// @notice the address from EIP-4337 official implementation
     IEntryPoint public entryPoint;
@@ -23,6 +25,7 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
     /// @param _entryPoint the entrypoint address from EIP-4337 official implementation
     function initialize(address _bloctoAccountImplementation, IEntryPoint _entryPoint) public initializer {
         __Ownable_init_unchained();
+        initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
     }
@@ -46,10 +49,12 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
         bytes32 _mergedKey
     ) public onlyOwner returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
-        // for consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
-        newProxy.initImplementation(bloctoAccountImplementation);
+        // to be consistent address
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
+        // to save gas, first deploy don't need to call initImplementation
+        // to be consistent address, (after) first upgrade need to call initImplementation
+        ret.initImplementation(bloctoAccountImplementation);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
         );
@@ -72,16 +77,14 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public onlyOwner returns (BloctoAccount ret) {
-        address addr = getAddress(_cosigner, _recoveryAddress, _salt);
-        uint256 codeSize = addr.code.length;
-        if (codeSize > 0) {
-            return BloctoAccount(payable(addr));
-        }
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
-        // for consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(address(this));
-        newProxy.initImplementation(bloctoAccountImplementation);
+        // to be consistent address
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
+
         ret = BloctoAccount(payable(address(newProxy)));
+        // to save gas, first deploy don't need to call initImplementation
+        // to be consistent address, (after) first upgrade need to call initImplementation
+        ret.initImplementation(bloctoAccountImplementation);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
         );
@@ -96,7 +99,8 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
     function getAddress(address _cosigner, address _recoveryAddress, uint256 _salt) public view returns (address) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         return Create2.computeAddress(
-            bytes32(salt), keccak256(abi.encodePacked(type(BloctoAccountProxy).creationCode, abi.encode(address(this))))
+            bytes32(salt),
+            keccak256(abi.encodePacked(type(BloctoAccountProxy).creationCode, abi.encode(address(initImplementation))))
         );
     }
 

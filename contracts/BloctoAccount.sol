@@ -127,4 +127,26 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     function withdrawDepositTo(address payable withdrawAddress, uint256 amount) external onlyInvoked {
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
+
+    /// @notice initialized _IMPLEMENTATION_SLOT
+    bool public initializedImplementation = false;
+
+    /// @notice Used to decorate the `init` function so this can only be called one time. Necessary
+    ///  since this contract will often be used as a "clone". (See above.)
+    modifier onlyOnceInitImplementation() {
+        require(!initializedImplementation, "must not already be initialized");
+        initializedImplementation = true;
+        _;
+    }
+
+    /// @notice initialize BloctoAccountProxy for adding the implementation address
+    /// @param implementation implementation address
+    function initImplementation(address implementation) public onlyOnceInitImplementation {
+        require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
+        StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
+    }
+
+    function disableInitImplementation() public {
+        initializedImplementation = true;
+    }
 }

@@ -198,6 +198,7 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public onlyOnce {
+        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
 
@@ -205,7 +206,9 @@ contract CoreWallet is IERC1271 {
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
         // add initial authorized address
-        this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithParity, _mergedKey);
+        authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
+        mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
+        emit Authorized(_authorizedAddress, _cosigner);
     }
 
     /// @notice The shared initialization code used to setup the contract state regardless of whether or
@@ -230,7 +233,11 @@ contract CoreWallet is IERC1271 {
         authVersion = AUTH_VERSION_INCREMENTOR;
         for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
             address _authorizedAddress = _authorizedAddresses[i];
-            this.setAuthorized(_authorizedAddress, _cosigner, _mergedKeyIndexWithParitys[i], _mergedKeys[i]);
+            require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
+            authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
+            mergedKeys[authVersion + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
+
+            emit Authorized(_authorizedAddress, _cosigner);
         }
     }
 
