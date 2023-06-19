@@ -1,6 +1,7 @@
 import { EntryPoint__factory } from '@account-abstraction/contracts'
 import { BigNumber } from 'ethers'
 import hre, { ethers } from 'hardhat'
+import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
 const BloctoAccountCloneableWallet = 'BloctoAccountCloneableWallet'
 const BloctoAccountFactory = 'BloctoAccountFactory'
@@ -23,7 +24,7 @@ async function main (): Promise<void> {
 
   // account factory
   const BloctoAccountFactoryContract = await ethers.getContractFactory(BloctoAccountFactory)
-  const accountFactory = await upgrades.deployProxy(BloctoAccountFactoryContract, ['0x515E96E561837Db9080E254db2Afd14B89D1ef68', EntryPoint],
+  const accountFactory = await upgrades.deployProxy(BloctoAccountFactoryContract, [walletCloneable.address, EntryPoint],
     { initializer: 'initialize', gasLimit: GasLimit })
 
   await accountFactory.deployed()
@@ -46,8 +47,9 @@ async function main (): Promise<void> {
     ]
   })
   // verify BloctoAccountFactory
+  const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, accountFactory.address)
   await hre.run('verify:verify', {
-    address: accountFactory.address,
+    address: accountFactoryImplAddress,
     constructorArguments: [
       walletCloneable.address, EntryPoint
     ]

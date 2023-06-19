@@ -97,7 +97,7 @@ describe('BloctoAccount Upgrade Test', function () {
         [px, px2])
 
       const receipt = await tx.wait()
-
+      console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
