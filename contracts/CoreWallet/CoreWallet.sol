@@ -206,8 +206,8 @@ contract CoreWallet is IERC1271 {
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
         // add initial authorized address
-        authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
-        mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
+        authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
+        mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParity] = _mergedKey;
         emit Authorized(_authorizedAddress, _cosigner);
     }
 
@@ -234,8 +234,8 @@ contract CoreWallet is IERC1271 {
         for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
             address _authorizedAddress = _authorizedAddresses[i];
             require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-            authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
-            mergedKeys[authVersion + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
+            authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
+            mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
 
             emit Authorized(_authorizedAddress, _cosigner);
         }
