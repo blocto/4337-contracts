@@ -3,65 +3,66 @@ import '@typechain/hardhat'
 import { HardhatUserConfig } from 'hardhat/config'
 import '@nomiclabs/hardhat-etherscan'
 import '@openzeppelin/hardhat-upgrades'
-
+import 'hardhat-storage-layout'
 import 'solidity-coverage'
-
-import * as fs from 'fs'
 
 const {
   ETHERSCAN_API_KEY, // etherscan API KEY
   POLYGONSCAN_API_KEY, // polygonscan API KEY
   BSCSCAN_API_KEY, // bscscan API KEY
   SNOWTRACE_API_KEY, // avalanche scan (snowtrace) API KEY
-  OPSCAN_API_KEY, // optimistic scan API KEY
-  ARBSCAN_API_KEY // arbitrum scan API KEY
+  ARBSCAN_API_KEY, // arbitrum scan API KEY
+  OP_API_KEY
 } = process.env
 
-const mnemonicFileName = process.env.MNEMONIC_FILE ?? `${process.env.HOME}/.secret/testnet-mnemonic.txt`
-let mnemonic = 'test '.repeat(11) + 'junk'
-if (fs.existsSync(mnemonicFileName)) { mnemonic = fs.readFileSync(mnemonicFileName, 'ascii') }
-
-function getNetwork1 (url: string): { url: string, accounts: { mnemonic: string } } {
-  return {
-    url,
-    accounts: { mnemonic }
-  }
-}
-
-function getNetwork (name: string): { url: string, accounts: { mnemonic: string } } {
-  return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`)
-  // return getNetwork1(`wss://${name}.infura.io/ws/v3/${process.env.INFURA_ID}`)
+function getDeployAccount (): string[] {
+  return (process.env.ETH_PRIVATE_KEY !== undefined) ? [process.env.ETH_PRIVATE_KEY] : []
 }
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
-
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [{
-      version: '0.8.15',
+      version: '0.8.17',
       settings: {
         optimizer: { enabled: true, runs: 1000000 }
       }
     }]
   },
   networks: {
-    dev: { url: 'http://localhost:8545' },
-    // github action starts localgeth service, for gas calculations
-    localgeth: { url: 'http://localgeth:8545' },
-    goerli: getNetwork('goerli'),
-    sepolia: getNetwork('sepolia'),
-    proxy: getNetwork1('http://localhost:8545'),
-    // mumbai: getNetwork1('https://polygon-testnet.public.blastapi.io'),
+    hardhat: {
+      allowUnlimitedContractSize: true
+    },
+    goerli: {
+      url: 'https://ethereum-goerli.publicnode.com',
+      accounts: getDeployAccount(),
+      chainId: 5
+    },
+    optimism_testnet: {
+      url: 'https://goerli.optimism.io',
+      accounts: getDeployAccount(),
+      chainId: 420
+    },
+    arbitrum_testnet: {
+      url: 'https://arbitrum-goerli.publicnode.com',
+      accounts: getDeployAccount(),
+      chainId: 421613
+    },
     mumbai: {
-      url: 'https://polygon-testnet.public.blastapi.io',
-      accounts:
-        process.env.ETH_PRIVATE_KEY !== undefined
-          ? [process.env.ETH_PRIVATE_KEY]
-          : [],
-      chainId: 80001,
-      gas: 8000000, // 8M
-      gasPrice: 10000000000 // 10 gwei
+      url: 'https://polygon-mumbai.gateway.tenderly.co',
+      accounts: getDeployAccount(),
+      chainId: 80001
+    },
+    bsc_testnet: {
+      url: 'https://data-seed-prebsc-2-s1.binance.org:8545',
+      accounts: getDeployAccount(),
+      chainId: 97
+    },
+    avalanche_testnet: {
+      url: 'https://api.avax-test.network/ext/bc/C/rpc',
+      accounts: getDeployAccount(),
+      chainId: 43113
     }
   },
   mocha: {
@@ -76,10 +77,12 @@ const config: HardhatUserConfig = {
       bsc: BSCSCAN_API_KEY,
       bscTestnet: BSCSCAN_API_KEY,
       avalanche: SNOWTRACE_API_KEY,
+      avalancheFujiTestnet: SNOWTRACE_API_KEY,
       goerli: ETHERSCAN_API_KEY,
       arbitrumOne: ARBSCAN_API_KEY,
       arbitrumGoerli: ARBSCAN_API_KEY,
-      optimism: OPSCAN_API_KEY
+      optimisticEthereum: OP_API_KEY,
+      optimisticGoerli: OP_API_KEY
     }
   }
 
