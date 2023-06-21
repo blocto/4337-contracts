@@ -21,7 +21,11 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
      */
     string public constant VERSION = "1.4.0";
 
+    /// @notice etnrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
+
+    /// @notice initialized _IMPLEMENTATION_SLOT
+    bool public initializedImplementation = false;
 
     /**
      * constructor for BloctoAccount
@@ -127,9 +131,6 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     function withdrawDepositTo(address payable withdrawAddress, uint256 amount) external onlyInvoked {
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
-
-    /// @notice initialized _IMPLEMENTATION_SLOT
-    bool public initializedImplementation = false;
 
     /// @notice Used to decorate the `init` function so this can only be called one time. Necessary
     ///  since this contract will often be used as a "clone". (See above.)

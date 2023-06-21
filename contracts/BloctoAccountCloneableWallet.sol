@@ -10,5 +10,6 @@ contract BloctoAccountCloneableWallet is BloctoAccount {
     /// @param anEntryPoint entrypoint address
     constructor(IEntryPoint anEntryPoint) BloctoAccount(anEntryPoint) {
         initialized = true;
+        initializedImplementation = true;
     }
 }

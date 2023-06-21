@@ -5,13 +5,13 @@ import {
   getMergedKey
 } from '../test/testutils'
 
-const FactoryAddress = '0x0194b9278b1f2ED8b2Ab5070382EAB890C2B199f'
+const FactoryAddress = '0x285cc5232236D227FCb23E6640f87934C948a028'
 
 const RecoverAddress = '0x0c558b2735286533b834bd1172bcA43DBD2970f7'
 
 const ethersSigner = ethers.provider.getSigner()
 
-const SALT = 4521523
+const SALT = 45215234123
 
 async function main (): Promise<void> {
   // const lockedAmount = ethers.utils.parseEther("1");
@@ -31,21 +31,22 @@ async function main (): Promise<void> {
 
   const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
   const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+  const [px3, pxIndexWithParity3] = getMergedKey(authorizedWallet2, cosignerWallet, 2)
 
   console.log('authorizedWallet.getAddress(): ', await authorizedWallet.getAddress(), ', cosignerWallet.getAddress()', await cosignerWallet.getAddress())
 
   console.log('ethersSigner address: ', await ethersSigner.getAddress())
   console.log('factory.address', factory.address)
 
-  const tx = await factory.createAccount2([authorizedWallet.address, authorizedWallet2.address],
+  const tx = await factory.createAccount2([authorizedWallet.address, authorizedWallet2.address, cosignerWallet.address],
     cosignerWallet.address, RecoverAddress,
     SALT, // random salt
-    [pxIndexWithParity, pxIndexWithParity2],
-    [px, px2])
+    [pxIndexWithParity, pxIndexWithParity2, pxIndexWithParity3],
+    [px, px2, px3])
 
   console.log('after createAccount2')
   const receipt = await tx.wait()
-  console.log(receipt)
+  console.log(receipt.gasUsed)
 }
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.

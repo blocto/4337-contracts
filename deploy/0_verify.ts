@@ -1,8 +1,9 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import hre, { ethers } from 'hardhat'
 
-const BloctoAccountCloneableWalletAddr = '0x592D3167Cbb926379c1527f078F22E82FfAFdAa3'
-const BloctoAccountFactoryAddr = '0x4b0C9eCC8A4577525688232977A346c1232a377E'
+const BloctoAccountCloneableWalletAddr = '0x490B5ED8A17224a553c34fAA642161c8472118dd'
+const BloctoAccountFactoryAddr = '0x285cc5232236D227FCb23E6640f87934C948a028'
+// const BloctoAccountProxyCloneAddr = '0x6672e24A9D809A1b03317e83949572e71afae5be'
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 
 async function main (): Promise<void> {
@@ -16,16 +17,25 @@ async function main (): Promise<void> {
   })
 
   // verify BloctoAccountFactory (if proxy)
-  const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
+  // const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
+  // await hre.run('verify:verify', {
+  //   address: accountFactoryImplAddress,
+  //   contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+  // })
+
+  // verify BloctoAccountFactory (if not proxy)
   await hre.run('verify:verify', {
-    address: BloctoAccountFactoryAddr,
+    address: '0x7db696a9130b0e2aea92b39bfe520861baa5fb83',
     contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 
-  // verify BloctoAccountFactory (if not proxy)
+  // verify BloctoAccountProxy
   // await hre.run('verify:verify', {
-  //   address: BloctoAccountFactoryAddr,
-  //   contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+  //   address: BloctoAccountProxyCloneAddr,
+  //   contract: 'contracts/BloctoAccountProxy.sol:BloctoAccountProxy',
+  //   constructorArguments: [
+  //     BloctoAccountCloneableWalletAddr
+  //   ]
   // })
 }
 

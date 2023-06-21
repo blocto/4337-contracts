@@ -1,5 +1,5 @@
 // update from https://github.com/borislav-itskov/schnorrkel.js
-import { ethers } from 'hardhat'
+import hre, { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { expect } from 'chai'
 import {
@@ -13,7 +13,8 @@ import { DefaultSigner } from '../test/schnorrUtils'
 
 const ERC1271_MAGICVALUE_BYTES32 = '0x1626ba7e'
 
-const FactoryAddress = '0x0194b9278b1f2ED8b2Ab5070382EAB890C2B199f'
+const BloctoAccountCloableWallet = '0x490B5ED8A17224a553c34fAA642161c8472118dd'
+const FactoryAddress = '0x285cc5232236D227FCb23E6640f87934C948a028'
 
 const RecoverAddress = '0x0c558b2735286533b834bd1172bcA43DBD2970f7'
 
@@ -22,10 +23,10 @@ const ethersSigner = ethers.provider.getSigner()
 // multisig
 const msg = 'just a test message'
 
-const SALT = 3521523151
+const SALT = 515233151
 
 async function main (): Promise<void> {
-  // const lockedAmount = ethers.utils.parseEther("1");
+  // ---------------Create Account---------------- //
   const AccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
   const factory = await AccountFactory.attach(FactoryAddress)
 
@@ -44,6 +45,7 @@ async function main (): Promise<void> {
 
   console.log('ethersSigner address: ', await ethersSigner.getAddress())
   console.log('factory.address', factory.address)
+  console.log('creating account...')
   const account = await createAccount(
     ethersSigner,
     await authorizedWallet.getAddress(),
@@ -57,6 +59,16 @@ async function main (): Promise<void> {
 
   console.log('account create success! SCW Address: ', account.address)
 
+  // ---------------Verify BloctoAccountProxy Contract---------------- //
+  await hre.run('verify:verify', {
+    address: account.address,
+    contract: 'contracts/BloctoAccountProxy.sol:BloctoAccountProxy',
+    constructorArguments: [
+      BloctoAccountCloableWallet
+    ]
+  })
+
+  // ---------------Verify Signature---------------- //
   const msgKeccak256 = ethers.utils.solidityKeccak256(['string'], [msg])
   const msgEIP191V0 = hashMessageEIP191V0(account.address, msgKeccak256)
   // note: following line multiSignMessage ignore hash message

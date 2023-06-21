@@ -32,27 +32,31 @@ async function main (): Promise<void> {
   console.log(`BloctoAccountFactory deployed to: ${accountFactory.address}`)
 
   // add stake
-  const tx = await accountFactory.addStake(BigNumber.from(86400 * 3650), { value: ethers.utils.parseEther('0.1') })
+  const tx = await accountFactory.addStake(BigNumber.from(86400 * 3650), { value: ethers.utils.parseEther('0.001') })
   await tx.wait()
 
   const entrypoint = EntryPoint__factory.connect(EntryPoint, ethers.provider)
   const depositInfo = await entrypoint.getDepositInfo(accountFactory.address)
   console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
 
+  // sleep 10 seconds
+  console.log('sleep 10 seconds for chain sync...')
+  await new Promise(f => setTimeout(f, 10000))
+
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: walletCloneable.address,
+    contract: 'contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
       EntryPoint
     ]
   })
-  // verify BloctoAccountFactory
+
+  // verify BloctoAccountFactory (if proxy)
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, accountFactory.address)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    constructorArguments: [
-      walletCloneable.address, EntryPoint
-    ]
+    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 }
 

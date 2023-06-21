@@ -7,43 +7,25 @@ test
 yarn test
 ```
 
-
-## Deploy 
-
-deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
-
-```
-yarn deploy --network mumbai 
-```
-
-
-deploy VerifyingPaymaster
-```
-yarn deploy-verifyingpaymaster --network mumbai 
-```
-
-
-verify BloctoAccountCloneableWallet
-```
-yarn  verify-bloctoaccountcloneable --network mumbai
-```
-
-
-verify BloctoAccountFactory
-```
-yarn verify-accountfactory --network mumbai
-```
-
-verify VerifyingPaymaster
-```
-yarn verify-verifyingpaymaster --network mumbai
-```
-
-## Schnorr Multi Sign Test
+Schnorr Multi Sign Test
 
 ```
 npx hardhat test test/schnorrMultiSign.test.ts 
 ```
+
+## Deploy & Verify
+
+deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
+
+```
+yarn deploy_verify --network goerli
+```
+
+create a test account and verify
+```
+npx hardhat run deploy/2_createSchnorrAccount_verify.ts --network goerli
+```
+
 
 ## Tool
 
@@ -51,6 +33,19 @@ check storage layout
 ```
 npx hardhat check
 ```
+
+## Testnet chain info
+
+goerli, arbitrum goerli, op goerli, mumbai, bsc testnet, avax testnet
+```
+BloctoAccountCloneableWallet
+0x490B5ED8A17224a553c34fAA642161c8472118dd
+BloctoAccountFactory
+0x285cc5232236D227FCb23E6640f87934C948a028
+VerifyingPaymaster
+0x9C58dF1BB61a3f68C66Ef5fC7D8Ab4bd1DaEC9Ac
+```
+
 
 ## Acknowledgement
 
