@@ -10,7 +10,7 @@ import "./BloctoAccountProxy.sol";
 import "./BloctoAccount.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy
-contract BloctoAccountFactory is Initializable, OwnableUpgradeable, AccessControlUpgradeable {
+contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
     string public constant VERSION = "1.4.0";
     /// @notice create account role for using createAccount() and createAccount2()
@@ -28,7 +28,6 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable, AccessContro
     /// @param _bloctoAccountImplementation the implementation address for BloctoAccountCloneableWallet
     /// @param _entryPoint the entrypoint address from EIP-4337 official implementation
     function initialize(address _bloctoAccountImplementation, IEntryPoint _entryPoint) public initializer {
-        __Ownable_init_unchained();
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
@@ -113,26 +112,30 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable, AccessContro
 
     /// @notice set the implementation
     /// @param _bloctoAccountImplementation update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
-    function setImplementation(address _bloctoAccountImplementation) public onlyOwner {
+    function setImplementation(address _bloctoAccountImplementation) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
     /// @notice set the entrypoint
     /// @param _entrypoint target entrypoint
-    function setEntrypoint(IEntryPoint _entrypoint) public onlyOwner {
+    function setEntrypoint(IEntryPoint _entrypoint) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         entryPoint = _entrypoint;
     }
 
     /// @notice withdraw value from the deposit
     /// @param withdrawAddress target to send to
     /// @param amount to withdraw
-    function withdrawTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
     /// @notice add stake in etnrypoint for this factory to avoid bundler reject
     /// @param unstakeDelaySec - the unstake delay for this factory. Can only be increased.
-    function addStake(uint32 unstakeDelaySec) external payable onlyOwner {
+    function addStake(uint32 unstakeDelaySec) external payable {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
 }
