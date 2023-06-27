@@ -4,14 +4,17 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./BloctoAccountProxy.sol";
 import "./BloctoAccount.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy
-contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
+contract BloctoAccountFactory is Initializable, OwnableUpgradeable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
     string public constant VERSION = "1.4.0";
+    /// @notice create account role for using createAccount() and createAccount2()
+    bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
     address public initImplementation;
     /// @notice the implementation address of BloctoAccountCloneableWallet
@@ -29,6 +32,7 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// @notice create an account, and return its BloctoAccount.
@@ -48,7 +52,8 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
         uint256 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public onlyOwner returns (BloctoAccount ret) {
+    ) public returns (BloctoAccount ret) {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
@@ -77,7 +82,8 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
         uint256 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public onlyOwner returns (BloctoAccount ret) {
+    ) public returns (BloctoAccount ret) {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
