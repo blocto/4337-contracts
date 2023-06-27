@@ -335,11 +335,11 @@ contract CoreWallet is IERC1271 {
 
     /// @notice Configures an authorizable address to use a merged key.
     /// @dev Must be called through `invoke()`
-    /// @param _meregedKeyIndex the merged key index
-    /// @param _meregedKey the corresponding merged authorized key & cosigner key by Schnorr
-    function setMergedKey(uint256 _meregedKeyIndex, bytes32 _meregedKey) external onlyInvoked {
-        mergedKeys[authVersion + _meregedKeyIndex] = _meregedKey;
-        emit AuthorizedMeregedKey(_meregedKeyIndex, _meregedKey);
+    /// @param _mergedKeyIndexWithParity the merged key index
+    /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
+    function setMergedKey(uint256 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
+        mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
+        emit AuthorizedMeregedKey(_mergedKeyIndexWithParity, _mergedKey);
     }
 
     /// @notice Performs an emergency recovery operation, removing all existing authorizations and setting
@@ -349,7 +349,14 @@ contract CoreWallet is IERC1271 {
     ///  is not trivially abused.
     /// @param _authorizedAddress the new and sole authorized address
     /// @param _cosigner the corresponding cosigner address, can be equal to _authorizedAddress
-    function emergencyRecovery(address _authorizedAddress, uint256 _cosigner) external onlyRecoveryAddress {
+    /// @param _mergedKeyIndexWithParity the merged key index
+    /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
+    function emergencyRecovery(
+        address _authorizedAddress,
+        uint256 _cosigner,
+        uint8 _mergedKeyIndexWithParity,
+        bytes32 _mergedKey
+    ) external onlyRecoveryAddress {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
@@ -360,13 +367,23 @@ contract CoreWallet is IERC1271 {
 
         // Store the new signer/cosigner pair as the only remaining authorized address
         authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
+        mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
         emit EmergencyRecovery(_authorizedAddress, _cosigner);
     }
 
-    function emergencyRecovery2(address _authorizedAddress, uint256 _cosigner, address _recoveryAddress)
-        external
-        onlyRecoveryAddress
-    {
+    /// @notice same as emergencyRecovery, but with a recovery address
+    /// @param _authorizedAddress the new and sole authorized address
+    /// @param _cosigner the corresponding cosigner address, can be equal to _authorizedAddress
+    /// @param _recoveryAddress recovery address
+    /// @param _mergedKeyIndexWithParity the merged key index
+    /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
+    function emergencyRecovery2(
+        address _authorizedAddress,
+        uint256 _cosigner,
+        address _recoveryAddress,
+        uint8 _mergedKeyIndexWithParity,
+        bytes32 _mergedKey
+    ) external onlyRecoveryAddress {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
@@ -377,7 +394,7 @@ contract CoreWallet is IERC1271 {
 
         // Store the new signer/cosigner pair as the only remaining authorized address
         authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
-
+        mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
         // set new recovery address
         address previous = recoveryAddress;
         recoveryAddress = _recoveryAddress;
