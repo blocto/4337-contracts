@@ -440,19 +440,6 @@ contract CoreWallet is IERC1271 {
         }
     }
 
-    function calculateParity(uint256 boolsUintCopy) internal pure returns (uint8) {
-        // uint256 boolsUintCopy = boolsUint;
-        uint8 _count = 0;
-        for (uint8 i = 0; i < 255; i++) {
-            if (boolsUintCopy & 1 == 1) {
-                _count++;
-            }
-            boolsUintCopy >>= 1;
-        }
-        // console.log("count:  %d", _count);
-        return (_count & 1) + 27;
-    }
-
     function verifySchnorr(bytes32 hash, bytes memory sig) internal view returns (bool) {
         // px := public key x-coord
         // e := schnorr signature challenge
