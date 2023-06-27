@@ -8,6 +8,8 @@ const BloctoAccountFactory = 'BloctoAccountFactory'
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 const GasLimit = 6000000
 
+const CreateAccountBackend = '0x67465ec61c3c07b119e09fbb4a0b59eb1ba14e62'
+
 async function main (): Promise<void> {
   // const lockedAmount = ethers.utils.parseEther("1");
   const [owner] = await ethers.getSigners()
@@ -31,13 +33,18 @@ async function main (): Promise<void> {
 
   console.log(`BloctoAccountFactory deployed to: ${accountFactory.address}`)
 
-  // add stake
-  const tx = await accountFactory.addStake(BigNumber.from(86400 * 3650), { value: ethers.utils.parseEther('0.001') })
-  await tx.wait()
+  // grant role
+  console.log('Granting create account role to backend address: ', CreateAccountBackend)
+  await accountFactory.grantRole(await accountFactory.CREATE_ACCOUNT_ROLE(), CreateAccountBackend)
 
-  const entrypoint = EntryPoint__factory.connect(EntryPoint, ethers.provider)
-  const depositInfo = await entrypoint.getDepositInfo(accountFactory.address)
-  console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
+  // add stake
+  // console.log('Adding stake to account factory')
+  // const tx = await accountFactory.addStake(BigNumber.from(86400 * 3650), { value: ethers.utils.parseEther('0.001') })
+  // await tx.wait()
+
+  // const entrypoint = EntryPoint__factory.connect(EntryPoint, ethers.provider)
+  // const depositInfo = await entrypoint.getDepositInfo(accountFactory.address)
+  // console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
 
   // sleep 10 seconds
   console.log('sleep 10 seconds for chain sync...')

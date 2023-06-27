@@ -63,6 +63,7 @@ describe('BloctoAccount Upgrade Test', function () {
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
+    await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
   })
 
   describe('wallet function', () => {
@@ -188,6 +189,31 @@ describe('BloctoAccount Upgrade Test', function () {
 
       const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
       expect(beforeAccountAddr).to.eql(afterAccountAddr)
+    })
+  })
+
+  describe('should create account if account has create account role', () => {
+    it('shoule crate account with grant role', async () => {
+      // create account
+      const createAccountWallet = await createTmpAccount()
+      await fund(createAccountWallet.address)
+      // grant account role
+      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await createAccountWallet.address)
+      // create account with createAccountWallet
+      const factoryWithCreateAccount = await factory.connect(createAccountWallet)
+      const mergedKeyIndex = 0
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
+
+      await createAccount(
+        ethersSigner,
+        await authorizedWallet.getAddress(),
+        await cosignerWallet.getAddress(),
+        await recoverWallet.getAddress(),
+        BigNumber.from(6346346),
+        pxIndexWithParity,
+        px,
+        factoryWithCreateAccount
+      )
     })
   })
 })

@@ -6,11 +6,13 @@ pragma solidity ^0.8.12;
 /* solhint-disable reason-string */
 
 import "../BloctoAccountFactory.sol";
-
 /// Test Blocto account Factory
-contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
+
+contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
     string public constant VERSION = "2.0.0";
+    /// @notice create account role for using createAccount() and createAccount2()
+    bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
     address public initImplementation;
     /// @notice the implementation address of BloctoAccountCloneableWallet
@@ -28,6 +30,7 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// @notice create an account, and return its BloctoAccount.
@@ -47,12 +50,13 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
         uint256 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public onlyOwner returns (BloctoAccount ret) {
+    ) public returns (BloctoAccount ret) {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
-        // to save gas, first deploy don't need to call initImplementation
+        // to save gas, first deploy using disableInitImplementation()
         // to be consistent address, (after) first upgrade need to call initImplementation
         ret.initImplementation(bloctoAccountImplementation);
         ret.init(
@@ -76,14 +80,15 @@ contract TestBloctoAccountFactoryV200 is Initializable, OwnableUpgradeable {
         uint256 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public onlyOwner returns (BloctoAccount ret) {
+    ) public returns (BloctoAccount ret) {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
 
         ret = BloctoAccount(payable(address(newProxy)));
-        // to save gas, first deploy don't need to call initImplementation
-        // to be consistent address, (after) first upgrade need to call initImplementation
+        // to save gas, first deploy use disableInitImplementation()
+        // to be consistent address, (after) first upgrade need to call initImplementation()
         ret.initImplementation(bloctoAccountImplementation);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys

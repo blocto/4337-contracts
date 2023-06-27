@@ -34,6 +34,7 @@ describe('Schnorr MultiSign Test', function () {
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
+    await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
   })
 
   it('should generate a schnorr musig2 and validate it on the blockchain', async () => {
