@@ -146,8 +146,4 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
     }
-
-    function disableInitImplementation() public {
-        initializedImplementation = true;
-    }
 }

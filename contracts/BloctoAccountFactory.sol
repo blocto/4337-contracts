@@ -55,7 +55,7 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
         ret = BloctoAccount(payable(address(newProxy)));
         // to save gas, first deploy using disableInitImplementation()
         // to be consistent address, (after) first upgrade need to call initImplementation
-        ret.disableInitImplementation();
+        ret.initImplementation(bloctoAccountImplementation);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
         );
@@ -85,8 +85,7 @@ contract BloctoAccountFactory is Initializable, OwnableUpgradeable {
         ret = BloctoAccount(payable(address(newProxy)));
         // to save gas, first deploy use disableInitImplementation()
         // to be consistent address, (after) first upgrade need to call initImplementation()
-        // ret.initImplementation(bloctoAccountImplementation);
-        ret.disableInitImplementation();
+        ret.initImplementation(bloctoAccountImplementation);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
         );
