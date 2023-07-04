@@ -5,6 +5,7 @@ import {
   BloctoAccount,
   BloctoAccount__factory,
   BloctoAccountCloneableWallet__factory,
+  CREATE3Factory,
   TestBloctoAccountCloneableWalletV200,
   TestBloctoAccountCloneableWalletV200__factory
 } from '../typechain'
@@ -21,6 +22,9 @@ import {
   getMergedKey
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
+import { keccak256 } from 'ethereumjs-util'
+import { deployCREATE3Factory, getCreationCode, getDeployCode } from '../src/create3Factory'
+import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -33,6 +37,8 @@ describe('BloctoAccount Upgrade Test', function () {
   let factory: BloctoAccountFactory
 
   let entryPoint: EntryPoint
+
+  let create3Factory: CREATE3Factory
 
   async function testCreateAccount (salt = 0, mergedKeyIndex = 0): Promise<BloctoAccount> {
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
@@ -58,11 +64,32 @@ describe('BloctoAccount Upgrade Test', function () {
     // 4337
     entryPoint = await deployEntryPoint()
 
+    // create3 factory
+    create3Factory = await deployCREATE3Factory(ethersSigner)
+
     // v1 implementation
-    implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
+    // implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
+    // maybe add version
+    const accountSalt = keccak256(Buffer.from('BloctoAccountCloneableWallet')) // maybe add version
+    implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
+    expect((await ethers.provider.getCode(implementation))).to.equal('0x')
+    await create3Factory.deploy(
+      accountSalt,
+      getCreationCode({
+        bytecode: BloctoAccountCloneableWallet__factory.bytecode,
+        constructorArgs: {
+          types: ['string'],
+          values: [entryPoint.address]
+        }
+      }))
+
+    expect((await ethers.provider.getCode(implementation))).not.equal('0x')
+
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
-    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
+    factory = await create3DeployTransparentProxy(BloctoAccountFactory,
+      [implementation, entryPoint.address, await ethersSigner.getAddress()],
+      { initializer: 'initialize' }, create3Factory, ethersSigner)
     await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
   })
 

@@ -44,7 +44,6 @@ import { toChecksumAddress } from 'ethereumjs-util'
 
 describe('EntryPoint', function () {
   let entryPoint: EntryPoint
-  let BloctoAccountFactory: BloctoAccountFactory
 
   let authorizedWallet: Wallet
   let cosignerWallet: Wallet
@@ -54,9 +53,6 @@ describe('EntryPoint', function () {
 
   let implementation: string
   let factory: BloctoAccountFactory
-
-  const globalUnstakeDelaySec = 2
-  const paymasterStake = ethers.utils.parseEther('2')
 
   before(async function () {
     this.timeout(20000)
@@ -71,7 +67,7 @@ describe('EntryPoint', function () {
 
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
-    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address], { initializer: 'initialize' })
+    factory = await upgrades.deployProxy(BloctoAccountFactory, [implementation, entryPoint.address, await ethersSigner.getAddress()], { initializer: 'initialize' })
     await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress());
 
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
