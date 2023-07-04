@@ -17,11 +17,11 @@ async function main (): Promise<void> {
   })
 
   // verify BloctoAccountFactory (if proxy)
-  // const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
-  // await hre.run('verify:verify', {
-  //   address: accountFactoryImplAddress,
-  //   contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
-  // })
+  const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
+  await hre.run('verify:verify', {
+    address: accountFactoryImplAddress,
+    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+  })
 
   // verify BloctoAccountFactory (if not proxy)
   await hre.run('verify:verify', {

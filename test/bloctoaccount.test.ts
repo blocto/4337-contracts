@@ -22,8 +22,8 @@ import {
   getMergedKey
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
-import { keccak256 } from 'ethereumjs-util'
-import { deployCREATE3Factory, getCreationCode, getDeployCode } from '../src/create3Factory'
+import { hexZeroPad } from '@ethersproject/bytes'
+import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 
 describe('BloctoAccount Upgrade Test', function () {
@@ -70,18 +70,22 @@ describe('BloctoAccount Upgrade Test', function () {
     // v1 implementation
     // implementation = (await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(entryPoint.address)).address
     // maybe add version
-    const accountSalt = keccak256(Buffer.from('BloctoAccountCloneableWallet')) // maybe add version
+    const accountSalt = hexZeroPad(Buffer.from('BloctoAccount_v140', 'utf-8'), 32)
     implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
     expect((await ethers.provider.getCode(implementation))).to.equal('0x')
+    // await create3Factory.deploy(
+    //   accountSalt,
+    //   getCreationCode({
+    //     bytecode: BloctoAccountCloneableWallet__factory.bytecode,
+    //     constructorArgs: {
+    //       types: ['string'],
+    //       values: [entryPoint.address]
+    //     }
+    //   }))
     await create3Factory.deploy(
       accountSalt,
-      getCreationCode({
-        bytecode: BloctoAccountCloneableWallet__factory.bytecode,
-        constructorArgs: {
-          types: ['string'],
-          values: [entryPoint.address]
-        }
-      }))
+      getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPoint.address])
+    )
 
     expect((await ethers.provider.getCode(implementation))).not.equal('0x')
 
