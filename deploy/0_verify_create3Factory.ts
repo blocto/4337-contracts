@@ -1,18 +1,15 @@
-// update from https://github.com/borislav-itskov/schnorrkel.js
 import hre from 'hardhat'
 
-const BloctoAccountCloableWallet = '0x490B5ED8A17224a553c34fAA642161c8472118dd'
+const Create3FactoryAddr = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 
 async function main (): Promise<void> {
   // ---------------Verify BloctoAccountProxy Contract---------------- //
   await hre.run('verify:verify', {
-    address: '0xd448D0835731f5dDE3942993B2bE80DFC232Cc0f',
-    contract: 'contracts/BloctoAccountProxy.sol:BloctoAccountProxy',
-    constructorArguments: [
-      BloctoAccountCloableWallet
-    ]
+    address: Create3FactoryAddr,
+    contract: 'contracts/Create3/CREATE3Factory.sol:CREATE3Factory'
   })
 }
+
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
 main().catch((error) => {

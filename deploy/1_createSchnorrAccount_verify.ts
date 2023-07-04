@@ -13,8 +13,8 @@ import { DefaultSigner } from '../test/schnorrUtils'
 
 const ERC1271_MAGICVALUE_BYTES32 = '0x1626ba7e'
 
-const BloctoAccountCloableWallet = '0x490B5ED8A17224a553c34fAA642161c8472118dd'
-const FactoryAddress = '0x285cc5232236D227FCb23E6640f87934C948a028'
+const BloctoAccountCloableWallet = '0x0579A406D38f683543c5D8742b057fbffaFC04F4'
+const FactoryAddress = '0xE4Ee81C4CF7D41D3104c467f137D1109ba6c20d8'
 
 const RecoverAddress = '0x0c558b2735286533b834bd1172bcA43DBD2970f7'
 
