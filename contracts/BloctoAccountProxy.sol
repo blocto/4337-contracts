@@ -2,11 +2,14 @@
 pragma solidity ^0.8.12;
 
 contract BloctoAccountProxy {
+    /// @notice This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1,from: openzeppelin/contracts/utils/ERC1967Upgrade.sol
+    bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     /// @notice constructor for setting the implementation address
     /// @param implementation the initial implementation(logic) addresses, must not be zero!
     constructor(address implementation) {
         assembly {
-            sstore(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc, implementation)
+            sstore(_IMPLEMENTATION_SLOT, implementation)
         }
     }
 
@@ -14,7 +17,7 @@ contract BloctoAccountProxy {
     /// @dev update from "@openzeppelin/contracts/proxy/Proxy.sol"
     fallback() external payable virtual {
         assembly {
-            let implementation := sload(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
+            let implementation := sload(_IMPLEMENTATION_SLOT)
             // if eq(implementation, 0) { implementation := 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 }
             // Copy msg.data. We take full control of memory in this inline assembly
             // block because it will not return to Solidity code. We overwrite the
