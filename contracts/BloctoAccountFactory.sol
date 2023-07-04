@@ -3,7 +3,6 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "./BloctoAccountProxy.sol";
@@ -27,11 +26,14 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @notice initialize
     /// @param _bloctoAccountImplementation the implementation address for BloctoAccountCloneableWallet
     /// @param _entryPoint the entrypoint address from EIP-4337 official implementation
-    function initialize(address _bloctoAccountImplementation, IEntryPoint _entryPoint) public initializer {
+    function initialize(address _bloctoAccountImplementation, IEntryPoint _entryPoint, address _admin)
+        public
+        initializer
+    {
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
     /// @notice create an account, and return its BloctoAccount.
