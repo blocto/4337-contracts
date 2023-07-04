@@ -629,58 +629,6 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, data);
     }
 
-    /// @notice A version of `invoke()` that has two explicit signatures, the first is used to derive the authorized
-    ///  address, the second to derive the cosigner. The value of `msg.sender` is ignored.
-    /// @param v the v values for the signatures
-    /// @param r the r values for the signatures
-    /// @param s the s values for the signatures
-    /// @param nonce the nonce value for the signature
-    /// @param authorizedAddress the address of the signer; forces the signature to be unique and tied to the signers nonce
-    /// @param data The data containing the transactions to be invoked; see internalInvoke for details.
-    function invoke2(
-        uint8[2] calldata v,
-        bytes32[2] calldata r,
-        bytes32[2] calldata s,
-        uint256 nonce,
-        address authorizedAddress,
-        bytes calldata data
-    ) external {
-        // check signature versions
-        // `ecrecover` will infact return 0 if given invalid
-        // so perhaps these checks are redundant
-        require(v[0] == 27 || v[0] == 28, "invalid signature version v[0]");
-        require(v[1] == 27 || v[1] == 28, "invalid signature version v[1]");
-
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, authorizedAddress, data));
-
-        // recover signer and cosigner
-        address signer = ecrecover(operationHash, v[0], r[0], s[0]);
-        address cosigner = ecrecover(operationHash, v[1], r[1], s[1]);
-
-        // check for valid signatures
-        require(signer != address(0), "Invalid signature for signer.");
-        require(cosigner != address(0), "Invalid signature for cosigner.");
-
-        // check signer address
-        require(signer == authorizedAddress, "authorized addresses must be equal");
-
-        // check nonces
-        require(nonce > nonces[signer], "must use valid nonce for signer");
-
-        // Get Mapping
-        address requiredCosigner = address(uint160(authorizations[authVersion + uint256(uint160(signer))]));
-
-        // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
-        // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == signer || requiredCosigner == cosigner, "Invalid authorization.");
-
-        // increment nonce to prevent replay attacks
-        nonces[signer] = nonce;
-
-        internalInvoke(operationHash, data);
-    }
-
     /// @dev Internal invoke call,
     /// @param operationHash The hash of the operation
     /// @param data The data to send to the `call()` operation
