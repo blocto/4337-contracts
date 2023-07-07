@@ -1,10 +1,13 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import hre, { ethers } from 'hardhat'
 
-const BloctoAccountCloneableWalletAddr = '0x490B5ED8A17224a553c34fAA642161c8472118dd'
-const BloctoAccountFactoryAddr = '0x285cc5232236D227FCb23E6640f87934C948a028'
-// const BloctoAccountProxyCloneAddr = '0x6672e24A9D809A1b03317e83949572e71afae5be'
+const BloctoAccountCloneableWalletAddr = '0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E'
+const BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
+const VerifingPaymasterAddr = '0xa312d8D37Be746BD09cBD9e9ba2ef16bc7Da48FF'
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+const VerifyingSigner = '0x42a22ec06bB5F58cc5ECa9d2A47F3A7fBc7c83A7'
+// const BloctoAccountProxyCloneAddr = '0x6672e24A9D809A1b03317e83949572e71afae5be'
+const Deployer = '0xadBd636A9fF51f2aB6999833AAB784f2C1Efa6F1'
 
 async function main (): Promise<void> {
   // verify BloctoAccountCloneableWallet
@@ -23,20 +26,14 @@ async function main (): Promise<void> {
     contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 
-  // verify BloctoAccountFactory (if not proxy)
+  //  erify VerifyingPaymaster Contract
   await hre.run('verify:verify', {
-    address: '0x7db696a9130b0e2aea92b39bfe520861baa5fb83',
-    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+    address: VerifingPaymasterAddr,
+    contract: 'contracts/Paymaster/VerifyingPaymaster.sol:VerifyingPaymaster',
+    constructorArguments: [
+      EntryPoint, VerifyingSigner, Deployer
+    ]
   })
-
-  // verify BloctoAccountProxy
-  // await hre.run('verify:verify', {
-  //   address: BloctoAccountProxyCloneAddr,
-  //   contract: 'contracts/BloctoAccountProxy.sol:BloctoAccountProxy',
-  //   constructorArguments: [
-  //     BloctoAccountCloneableWalletAddr
-  //   ]
-  // })
 }
 
 // We recommend this pattern to be able to use async/await everywhere

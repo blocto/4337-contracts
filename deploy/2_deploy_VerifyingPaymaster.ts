@@ -1,61 +1,64 @@
 import hre, { ethers } from 'hardhat'
+import { BigNumber } from 'ethers'
+import {
+  VerifyingPaymaster__factory,
+  CREATE3Factory__factory,
+  IEntryPoint__factory
+} from '../typechain'
+import { hexZeroPad } from '@ethersproject/bytes'
+import { getDeployCode } from '../src/create3Factory'
 
-// import { SignerWithAddress } from 'hardhat-deploy-ethers/signers'
-
-const ContractName = 'VerifyingPaymaster'
 // version 0.6.0 from https://mirror.xyz/erc4337official.eth/cSdZl9X-Hce71l_FzjVKQ5eN398ial7QmkDExmIIOQk
-const EntryPointAddress = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
-const VerifyingSigner = '0x31E2FD21F2ad34bBf56B08baD57438869aED12eF'
-const AligementNonce = 15
-const GasLimit = 6000000
+const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+const VerifyingSigner = '0x42a22ec06bB5F58cc5ECa9d2A47F3A7fBc7c83A7'
+// from 0_deploy_create3Factory.ts
+const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 
-async function alignNonce (signer: any, targetNonce: number): Promise<void> {
-  let nowNonce = await signer.getTransactionCount()
-
-  while (nowNonce < targetNonce) {
-    console.log('nonce not aligned, now: ', nowNonce, ', target: ', targetNonce, '-> send a tx to align nonce')
-    await signer.sendTransaction({
-      to: '0x914171a48aa2c306DD2D68c6810D6E2B4F4ACdc7',
-      value: 0// 0 ether
-    })
-
-    console.log('sleep 10 seconds for chain sync...')
-    await new Promise(f => setTimeout(f, 20000))
-    nowNonce = await signer.getTransactionCount()
-  }
-}
+const VerifyingPaymasterSalt = 'VerifyingPaymaster_v0_1day'
+// addStake for bundler checking
+const AddStakeAmount = '0.001'
+const AddStakePeriod = 86400 * 1
 
 async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
-  const nowNonce = await owner.getTransactionCount()
-  console.log('deploy with account: ', owner.address, ', nonce: ', nowNonce)
+  console.log('deploying VerifyingPaymaster with account: ', owner.address)
 
-  if (nowNonce == AligementNonce) {
-    console.log('nonce aligned')
-  } else if (nowNonce < AligementNonce) {
-    await alignNonce(owner, AligementNonce)
+  const create3Factory = CREATE3Factory__factory.connect(Create3FactoryAddress, owner)
+  // -------------------VerifingPaymaster------------------------------//
+  const salt = hexZeroPad(Buffer.from(VerifyingPaymasterSalt, 'utf-8'), 32)
+  console.log(`Deploying VerifingPaymaster with -> \n\t salt str:  ${salt}`)
+  const addr = await create3Factory.getDeployed(owner.address, salt)
+
+  if ((await ethers.provider.getCode(addr)) === '0x') {
+    console.log(`VerifingPaymster deploying to: ${addr}`)
+    const tx = await create3Factory.deploy(
+      salt,
+      getDeployCode(new VerifyingPaymaster__factory(), [EntryPoint, VerifyingSigner, owner.address]))
+    await tx.wait()
+
+    console.log(`VerifingPaymster JUST deployed to: ${addr}`)
   } else {
-    throw new Error('nonce is larger than target nonce')
+    console.log(`VerifingPaymster WAS deployed to: ${addr}`)
   }
-  console.log(`deploying ${ContractName}...`)
-  const factory = await ethers.getContractFactory(ContractName)
-  const contract = await factory.deploy(EntryPointAddress, VerifyingSigner, {
-    gasLimit: GasLimit // set the gas limit to 6 million
-  })
 
-  await contract.deployed()
+  // ---------------add stake------------
+  console.log('Adding stake to VerifingPaymaster...')
+  const tx = await VerifyingPaymaster__factory.connect(addr, owner).addStake(BigNumber.from(AddStakePeriod), { value: ethers.utils.parseEther(AddStakeAmount) })
+  await tx.wait()
 
-  console.log(`${ContractName} deployed to: ${contract.address}`)
+  const entrypoint = IEntryPoint__factory.connect(EntryPoint, ethers.provider)
+  const depositInfo = await entrypoint.getDepositInfo(addr)
+  console.log('stake: ', ethers.utils.formatUnits(depositInfo.stake), ', unstakeDelaySec: ', depositInfo.unstakeDelaySec)
 
-  // sleep 10 seconds
-  console.log('sleep 10 seconds for chain sync...')
-  await new Promise(f => setTimeout(f, 10000))
-  // ---------------Verify BloctoAccountProxy Contract---------------- //
+  // sleep 15 seconds
+  console.log('sleep 15 seconds for chain sync...')
+  await new Promise(f => setTimeout(f, 15000))
+  // ---------------Verify VerifyingPaymaster Contract---------------- //
   await hre.run('verify:verify', {
-    address: contract.address,
+    address: addr,
     contract: 'contracts/Paymaster/VerifyingPaymaster.sol:VerifyingPaymaster',
     constructorArguments: [
-      EntryPointAddress, VerifyingSigner
+      EntryPoint, VerifyingSigner, owner.address
     ]
   })
 }
