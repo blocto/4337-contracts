@@ -6,6 +6,7 @@ pragma solidity ^0.8.12;
 
 import "@account-abstraction/contracts/core/BasePaymaster.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 /**
  * A sample paymaster that uses external service to decide whether to pay for the UserOp.
  * The paymaster trusts an external signer to sign the transaction.
@@ -16,7 +17,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * - the account checks a signature to prove identity and account ownership.
  */
 
-contract VerifyingPaymaster is BasePaymaster {
+contract VerifyingPaymaster is BasePaymaster, AccessControl {
     using ECDSA for bytes32;
     using UserOperationLib for UserOperation;
 
@@ -26,12 +27,23 @@ contract VerifyingPaymaster is BasePaymaster {
 
     uint256 private constant SIGNATURE_OFFSET = 84;
 
-    constructor(IEntryPoint _entryPoint, address _verifyingSigner) BasePaymaster(_entryPoint) {
+    bytes32 public constant ADD_STAKE_ROLE = keccak256("ADD_STAKE_ROLE");
+
+    constructor(IEntryPoint _entryPoint, address _verifyingSigner, address _owner) BasePaymaster(_entryPoint) {
         verifyingSigner = _verifyingSigner;
+        // because use create3 to deploy this contract, we can't use msg.sender as the owner.
+        transferOwnership(_owner);
+        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+        _setupRole(ADD_STAKE_ROLE, _owner);
     }
 
     function setVerifyingSigner(address _verifyingSigner) public onlyOwner {
         verifyingSigner = _verifyingSigner;
+    }
+
+    function addStakeUseAddStakeRole(uint32 unstakeDelaySec) external payable {
+        require(hasRole(ADD_STAKE_ROLE, msg.sender), "caller is not a add stake role");
+        entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
 
     mapping(address => uint256) public senderNonce;

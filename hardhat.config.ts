@@ -7,6 +7,7 @@ import 'hardhat-storage-layout'
 import 'solidity-coverage'
 
 const {
+  ETHEREUM_URL,
   ETHERSCAN_API_KEY, // etherscan API KEY
   POLYGONSCAN_API_KEY, // polygonscan API KEY
   BSCSCAN_API_KEY, // bscscan API KEY
@@ -33,6 +34,36 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
+    },
+    ethereum: {
+      url: ETHEREUM_URL,
+      accounts: getDeployAccount(),
+      chainId: 1
+    },
+    bsc: {
+      url: 'https://bsc-dataseed2.binance.org/',
+      accounts: getDeployAccount(),
+      chainId: 56
+    },
+    polygon: {
+      url: 'https://rpc.ankr.com/polygon',
+      accounts: getDeployAccount(),
+      chainId: 137
+    },
+    avalanche: {
+      url: 'https://api.avax.network/ext/bc/C/rpc',
+      accounts: getDeployAccount(),
+      chainId: 43114
+    },
+    optimism: {
+      url: 'https://mainnet.optimism.io',
+      accounts: getDeployAccount(),
+      chainId: 10
+    },
+    arbitrum: {
+      url: 'https://arb1.arbitrum.io/rpc',
+      accounts: getDeployAccount(),
+      chainId: 42161
     },
     goerli: {
       url: 'https://ethereum-goerli.publicnode.com',
