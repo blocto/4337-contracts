@@ -18,14 +18,18 @@ npx hardhat test test/schnorrMultiSign.test.ts
 deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
 
 ```
-yarn deploy_verify --network goerli
+yarn deploy-create3Factory --network ethereum
 ```
 
-create a test account and verify
+BloctoAccount & BloctoAccountFactory deploy
 ```
-npx hardhat run deploy/2_createSchnorrAccount_verify.ts --network goerli
+yarn deploy --network ethereum
 ```
 
+Deploy 
+```
+yarn deploy-verifyingPaymaster --network ethereum
+```
 
 ## Tool
 
@@ -34,16 +38,18 @@ check storage layout
 npx hardhat check
 ```
 
-## Testnet chain info
+## Chain Address Info
 
-goerli, arbitrum goerli, op goerli, mumbai, bsc testnet, avax testnet
+Mainnet (ethereum, arbitrum, op, polygon, bsc, avax)
+
+testnet(goerli, arbitrum goerli, op goerli, mumbai, bsc testnet, avax testnet)
 ```
 BloctoAccountCloneableWallet
-0x490B5ED8A17224a553c34fAA642161c8472118dd
+0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E
 BloctoAccountFactory
-0x285cc5232236D227FCb23E6640f87934C948a028
+0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183
 VerifyingPaymaster
-0x9C58dF1BB61a3f68C66Ef5fC7D8Ab4bd1DaEC9Ac
+0xa312d8D37Be746BD09cBD9e9ba2ef16bc7Da48FF
 ```
 
 
