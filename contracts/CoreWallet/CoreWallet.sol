@@ -387,6 +387,7 @@ contract CoreWallet is IERC1271 {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
+        require(_recoveryAddress != address(0), "Recovery addresses must not be zero.");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
