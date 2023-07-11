@@ -1,8 +1,9 @@
 // update from https://github.com/borislav-itskov/schnorrkel.js
 import hre from 'hardhat'
 
-const BloctoAccountCloableWallet = '0x0579A406D38f683543c5D8742b057fbffaFC04F4'
-const BloctoAccountProxy = '0x156af9D66710cCa555163f5571530aB0dD4e1447'
+const BloctoAccountCloableWallet = '0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E'
+// const BloctoAccountProxy = '0x203519717E215B1B248052BAf075900D96E8B9A9'
+const BloctoAccountProxy = '0x20D54B1e8f536c660917f857C0De69Df496E8ace'
 
 async function main (): Promise<void> {
   // ---------------Verify BloctoAccountProxy Contract---------------- //
