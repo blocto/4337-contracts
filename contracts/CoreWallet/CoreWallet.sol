@@ -234,6 +234,8 @@ contract CoreWallet is IERC1271 {
         for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
             address _authorizedAddress = _authorizedAddresses[i];
             require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
+            require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
+            require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
             authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
             mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
 
