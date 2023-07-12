@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity 0.8.17;
 
 import "./BytesExtractSignature.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -588,7 +588,7 @@ contract CoreWallet is IERC1271 {
         // if the actual cosigner matches the required cosigner.
         require(requiredCosigner == signer || requiredCosigner == msg.sender, "Invalid authorization.");
 
-        // increment nonce to prevent replay attacks
+        // set nonce
         nonces[signer] = nonce;
 
         // call internal function

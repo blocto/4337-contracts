@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity 0.8.17;
 
 contract BloctoAccountProxy {
     /// @notice This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1,from: openzeppelin/contracts/utils/ERC1967Upgrade.sol
