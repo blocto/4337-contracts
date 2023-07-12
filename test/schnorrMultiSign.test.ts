@@ -65,7 +65,7 @@ describe('Schnorr MultiSign Test', function () {
     const msg = 'just a test message'
 
     const msgKeccak256 = ethers.utils.solidityKeccak256(['string'], [msg])
-    const msgEIP191V0 = hashMessageEIP191V0(account.address, msgKeccak256)
+    const msgEIP191V0 = hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, account.address, msgKeccak256)
     // note: following line multiSignMessage ignore hash message
     const { signature: sigOne, challenge: e } = signerOne.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)
     const { signature: sigTwo } = signerTwo.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)
@@ -113,7 +113,7 @@ describe('Schnorr MultiSign Test', function () {
     const msg = 'just a test message'
 
     const msgKeccak256 = ethers.utils.solidityKeccak256(['string'], [msg])
-    const msgEIP191V0 = hashMessageEIP191V0(account.address, msgKeccak256)
+    const msgEIP191V0 = hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, account.address, msgKeccak256)
     // note: following line multiSignMessage ignore hash message
     const { signature: sigOne, challenge: e } = signerOne.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)
     const { signature: sigTwo } = signerTwo.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)

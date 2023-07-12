@@ -384,10 +384,10 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) external onlyRecoveryAddress {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
+        require(_authorizedAddress != address(0), "Authorized address must not be zero.");
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
-        require(_recoveryAddress != address(0), "Recovery addresses must not be zero.");
+        require(_recoveryAddress != address(0), "Recovery address must not be zero.");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
@@ -481,7 +481,8 @@ contract CoreWallet is IERC1271 {
         // with the same key
         // 3. Gnosis does something similar:
         // https://github.com/gnosis/safe-contracts/blob/102e632d051650b7c4b0a822123f449beaf95aed/contracts/GnosisSafe.sol
-        bytes32 operationHash = keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, _hash));
+        bytes32 operationHash =
+            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, _hash));
 
         if (_signature.length == 65 && (_signature[64] & 0x80) > 0) {
             return verifySchnorr(operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
@@ -564,8 +565,9 @@ contract CoreWallet is IERC1271 {
         require(v == 27 || v == 28, "Invalid signature version.");
 
         // calculate hash
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, authorizedAddress, data));
+        bytes32 operationHash = keccak256(
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, nonce, authorizedAddress, data)
+        );
 
         // recover signer
         address signer = ecrecover(operationHash, v, r, s);
@@ -608,8 +610,9 @@ contract CoreWallet is IERC1271 {
         uint256 nonce = nonces[msg.sender];
 
         // calculate hash
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, msg.sender, data));
+        bytes32 operationHash = keccak256(
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, nonce, msg.sender, data)
+        );
 
         // recover cosigner
         address cosigner = ecrecover(operationHash, v, r, s);
