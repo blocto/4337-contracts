@@ -309,11 +309,14 @@ export const txData = (revert: number, to: string, amount: BigNumber, dataBuff: 
 }
 
 export const EIP191V0MessagePrefix = '\x19\x00'
-export function hashMessageEIP191V0 (address: string, message: Bytes | string): string {
+export function hashMessageEIP191V0 (chainId: number, address: string, message: Bytes | string): string {
   address = address.replace('0x', '')
+
+  const chainIdStr = ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32)
 
   return keccak256(concat([
     toUtf8Bytes(EIP191V0MessagePrefix),
+    chainIdStr,
     Uint8Array.from(Buffer.from(address, 'hex')),
     message
   ]))
@@ -328,7 +331,7 @@ export async function signUpgrade (signerWallet: Wallet, accountAddress: string,
     newImplementationAddress
   ])
   // console.log('dataForHash: ', dataForHash)
-  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0(accountAddress, dataForHash))
+  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
   return sign
 }
 
@@ -340,8 +343,7 @@ export async function signMessage (signerWallet: Wallet, accountAddress: string,
     signerWallet.address,
     data
   ])
-  // console.log('dataForHash: ', dataForHash)
-  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0(accountAddress, dataForHash))
+  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
   return sign
 }
 
