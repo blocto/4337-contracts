@@ -147,7 +147,7 @@ contract CoreWallet is IERC1271 {
     /// @param cosigner the 2-of-2 signatory (optional).
     event Authorized(address authorizedAddress, uint256 cosigner);
 
-    event AuthorizedMeregedKey(uint256 authorizedAddress, bytes32 mergedKey);
+    event AuthorizedMeregedKey(uint8 mergedKeyIndexWithParity, bytes32 mergedKey);
 
     /// @notice Emitted when an emergency recovery has been performed. If this event is fired,
     ///  ALL previously authorized addresses have been deauthorized and the only authorized
@@ -339,7 +339,8 @@ contract CoreWallet is IERC1271 {
     /// @dev Must be called through `invoke()`
     /// @param _mergedKeyIndexWithParity the merged key index
     /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
-    function setMergedKey(uint256 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
+    function setMergedKey(uint8 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
+        require((_mergedKeyIndexWithParity & 0x80) > 0, "Invalid merged key index.");
         mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
         emit AuthorizedMeregedKey(_mergedKeyIndexWithParity, _mergedKey);
     }
