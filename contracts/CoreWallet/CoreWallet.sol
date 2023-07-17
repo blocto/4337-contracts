@@ -42,6 +42,9 @@ contract CoreWallet is IERC1271 {
     /// @notice Q constant for schnorr signature verify
     uint256 internal constant Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
+    /// @notice s of signature must be less than S_MAX refer from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/f29307cfe08c7d76d96a38bf94bab5fec223c943/contracts/utils/cryptography/ECDSA.sol#L156
+    bytes32 internal constant S_MAX = bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0);
+
     /// @notice The pre-shifted authVersion (to get the current authVersion as an integer,
     ///  shift this value right by 160 bits). Starts as `1 << 160` (`AUTH_VERSION_INCREMENTOR`)
     ///  See the comment on the `authorizations` variable for how this is used.
@@ -450,6 +453,7 @@ contract CoreWallet is IERC1271 {
         // s := schnorr signature
         // parity := public key y-coord parity (27 or 28)
         (bytes32 e, bytes32 s, uint8 keyIndexWithParity) = sig.extractSignature(0);
+        // require(s <= S_MAX, "s of signature is too large");
         bytes32 px = mergedKeys[authVersion + uint256(keyIndexWithParity)];
         uint8 parity = (keyIndexWithParity & 0x1) + 27;
 
@@ -500,11 +504,14 @@ contract CoreWallet is IERC1271 {
         // extract 1 or 2 signatures depending on length
         if (_signature.length == 65) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
+            require(s[0] <= S_MAX, "s of signature[0] is too large");
             signer = ecrecover(operationHash, v[0], r[0], s[0]);
             cosigner = signer;
         } else if (_signature.length == 130) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
+            require(s[0] <= S_MAX, "s of signature[0] is too large");
             (r[1], s[1], v[1]) = _signature.extractSignature(65);
+            require(s[1] <= S_MAX, "s of signature[1] is too large");
             signer = ecrecover(operationHash, v[0], r[0], s[0]);
             cosigner = ecrecover(operationHash, v[1], r[1], s[1]);
         } else {
@@ -566,7 +573,7 @@ contract CoreWallet is IERC1271 {
     ) external {
         // check signature version
         require(v == 27 || v == 28, "Invalid signature version.");
-
+        require(s <= S_MAX, "s of signature is too large");
         // calculate hash
         bytes32 operationHash = keccak256(
             abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, nonce, authorizedAddress, data)
@@ -609,6 +616,7 @@ contract CoreWallet is IERC1271 {
         // `ecrecover` will in fact return 0 if given invalid
         // so perhaps this check is redundant
         require(v == 27 || v == 28, "Invalid signature version.");
+        require(s <= S_MAX, "s of signature is too large");
 
         uint256 nonce = nonces[msg.sender];
 
