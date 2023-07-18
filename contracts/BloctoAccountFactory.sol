@@ -140,4 +140,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
+
+    /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }
