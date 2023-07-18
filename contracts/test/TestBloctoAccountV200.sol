@@ -147,4 +147,7 @@ contract TestBloctoAccountV200 is UUPSUpgradeable, TokenCallbackHandler, CoreWal
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
     }
+
+    /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+    uint256[50] private __gap;
 }
