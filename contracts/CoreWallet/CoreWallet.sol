@@ -492,7 +492,7 @@ contract CoreWallet is IERC1271 {
         // 3. Gnosis does something similar:
         // https://github.com/gnosis/safe-contracts/blob/102e632d051650b7c4b0a822123f449beaf95aed/contracts/GnosisSafe.sol
         bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, _hash));
+            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _hash));
 
         if (_signature.length == 65 && (_signature[64] & 0x80) > 0) {
             return verifySchnorr(operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
@@ -579,7 +579,7 @@ contract CoreWallet is IERC1271 {
         require(s <= S_MAX, "s of signature is too large");
         // calculate hash
         bytes32 operationHash = keccak256(
-            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, nonce, authorizedAddress, data)
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, nonce, authorizedAddress, data)
         );
 
         // recover signer
@@ -625,7 +625,7 @@ contract CoreWallet is IERC1271 {
 
         // calculate hash
         bytes32 operationHash = keccak256(
-            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, block.chainid, this, nonce, msg.sender, data)
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, nonce, msg.sender, data)
         );
 
         // recover cosigner
