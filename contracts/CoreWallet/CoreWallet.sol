@@ -589,7 +589,7 @@ contract CoreWallet is IERC1271 {
         require(signer != address(0), "Invalid signature.");
 
         // check nonce
-        require(nonce > nonces[signer], "must use valid nonce for signer");
+        require(nonce > nonces[signer] && (nonce < (nonces[signer] + 10)), "must use valid nonce for signer");
 
         // check signer
         require(signer == authorizedAddress, "authorized addresses must be equal");
