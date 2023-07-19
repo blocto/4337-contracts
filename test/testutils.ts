@@ -316,8 +316,8 @@ export function hashMessageEIP191V0 (chainId: number, address: string, message: 
 
   return keccak256(concat([
     toUtf8Bytes(EIP191V0MessagePrefix),
-    chainIdStr,
     Uint8Array.from(Buffer.from(address, 'hex')),
+    chainIdStr,
     message
   ]))
 }
