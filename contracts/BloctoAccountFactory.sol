@@ -30,6 +30,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         public
         initializer
     {
+        require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
@@ -116,6 +117,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param _bloctoAccountImplementation update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
     function setImplementation(address _bloctoAccountImplementation) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+        require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
@@ -123,6 +125,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param _entrypoint target entrypoint
     function setEntrypoint(IEntryPoint _entrypoint) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+        require(address(_entrypoint) != address(0), "Invalid entrypoint address.");
         entryPoint = _entrypoint;
     }
 
@@ -131,6 +134,8 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param amount to withdraw
     function withdrawTo(address payable withdrawAddress, uint256 amount) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+        require(address(withdrawAddress) != address(0), "Invalid withdraw address.");
+        require(amount > 0, "Invalid withdraw amount.");
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 

@@ -204,6 +204,7 @@ contract CoreWallet is IERC1271 {
         require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
         require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
         require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
+        require(address(uint160(_cosigner)) != address(0), "The cosigner address must not be zero.");
 
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
@@ -231,6 +232,7 @@ contract CoreWallet is IERC1271 {
         require(_authorizedAddresses.length > 0, "invalid _authorizedAddresses array");
         require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "Array length not match with.");
         require(_authorizedAddresses.length == _mergedKeys.length, "Array length not match.");
+        require(address(uint160(_cosigner)) != address(0), "The cosigner address must not be zero.");
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
@@ -421,6 +423,7 @@ contract CoreWallet is IERC1271 {
             address(uint160(authorizations[authVersion + uint256(uint160(_recoveryAddress))])) == address(0),
             "Do not use an authorized address as the recovery address."
         );
+        require(_recoveryAddress != address(0), "Recovery address must not be zero.");
 
         address previous = recoveryAddress;
         recoveryAddress = _recoveryAddress;
