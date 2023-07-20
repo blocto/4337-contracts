@@ -337,23 +337,8 @@ export function hashMessageEIP191V0WithoutChainId (address: string, message: Byt
   ]))
 }
 
-// export async function signUpgrade (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, newImplementationAddress: string): Promise<Signature> {
-//   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
-
-//   const dataForHash = concat([
-//     nonceBytesLike,
-//     signerWallet.address,
-//     newImplementationAddress
-//   ])
-//   // console.log('dataForHash: ', dataForHash)
-//   const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
-//   return sign
-// }
-
 export async function signMessage (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
-
-  console.log('inin signMessage')
 
   const dataForHash = concat([
     nonceBytesLike,
