@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.17;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "./BloctoAccountProxy.sol";
-import "./BloctoAccount.sol";
+import "../../BloctoAccountProxy.sol";
+import "./BloctoAccountV140.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy
-contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
+contract BloctoAccountFactoryV140 is Initializable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
-    string public constant VERSION = "1.5.0";
+    string public constant VERSION = "1.4.0";
     /// @notice create account role for using createAccount() and createAccount2()
     bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
@@ -30,7 +30,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         public
         initializer
     {
-        require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
         initImplementation = _bloctoAccountImplementation;
         bloctoAccountImplementation = _bloctoAccountImplementation;
         entryPoint = _entryPoint;
@@ -54,12 +53,12 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public returns (BloctoAccount ret) {
+    ) public returns (BloctoAccountV140 ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
-        ret = BloctoAccount(payable(address(newProxy)));
+        ret = BloctoAccountV140(payable(address(newProxy)));
         // to save gas, first deploy using disableInitImplementation()
         // to be consistent address, (after) first upgrade need to call initImplementation
         ret.initImplementation(bloctoAccountImplementation);
@@ -84,13 +83,13 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public returns (BloctoAccount ret) {
+    ) public returns (BloctoAccountV140 ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
 
-        ret = BloctoAccount(payable(address(newProxy)));
+        ret = BloctoAccountV140(payable(address(newProxy)));
         // to save gas, first deploy use disableInitImplementation()
         // to be consistent address, (after) first upgrade need to call initImplementation()
         ret.initImplementation(bloctoAccountImplementation);
@@ -117,7 +116,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param _bloctoAccountImplementation update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
     function setImplementation(address _bloctoAccountImplementation) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
@@ -125,7 +123,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param _entrypoint target entrypoint
     function setEntrypoint(IEntryPoint _entrypoint) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(address(_entrypoint) != address(0), "Invalid entrypoint address.");
         entryPoint = _entrypoint;
     }
 
@@ -134,8 +131,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @param amount to withdraw
     function withdrawTo(address payable withdrawAddress, uint256 amount) public {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(address(withdrawAddress) != address(0), "Invalid withdraw address.");
-        require(amount > 0, "Invalid withdraw amount.");
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
@@ -145,7 +140,4 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
-
-    /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[50] private __gap;
 }
