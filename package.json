@@ -1,6 +1,6 @@
 {
   "name": "bloctoaccount",
-  "version": "0.6.0",
+  "version": "1.5.0",
   "description": "BloctoAccount & BloctoAccountFactory smart contracts",
   "scripts": {
     "clean": "rm -rf cache artifacts typechain typechain-types",
@@ -61,5 +61,6 @@
     "source-map-support": "^0.5.19",
     "table": "^6.8.0",
     "typescript": "^4.3.5"
-  }
+  },
+  "license": "GPL-3.0"
 }
