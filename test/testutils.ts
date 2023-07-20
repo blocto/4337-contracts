@@ -32,6 +32,8 @@ export const FIVE_ETH = parseEther('5')
 
 export const tostr = (x: any): string => x != null ? x.toString() : 'null'
 
+export const ShowCreateAccountGas = false
+
 export function tonumber (x: any): number {
   try {
     return parseFloat(x.toString())
@@ -271,7 +273,10 @@ export async function createAccount (
   const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
   // console.log('tx: ', tx)
   const receipt = await tx.wait()
-  console.log('createAccount gasUsed: ', receipt.gasUsed)
+  if (ShowCreateAccountGas) {
+    console.log('createAccount gasUsed: ', receipt.gasUsed)
+  }
+
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account
@@ -322,21 +327,33 @@ export function hashMessageEIP191V0 (chainId: number, address: string, message: 
   ]))
 }
 
-export async function signUpgrade (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, newImplementationAddress: string): Promise<Signature> {
-  const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
+export function hashMessageEIP191V0WithoutChainId (address: string, message: Bytes | string): string {
+  address = address.replace('0x', '')
 
-  const dataForHash = concat([
-    nonceBytesLike,
-    signerWallet.address,
-    newImplementationAddress
-  ])
-  // console.log('dataForHash: ', dataForHash)
-  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
-  return sign
+  return keccak256(concat([
+    toUtf8Bytes(EIP191V0MessagePrefix),
+    Uint8Array.from(Buffer.from(address, 'hex')),
+    message
+  ]))
 }
+
+// export async function signUpgrade (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, newImplementationAddress: string): Promise<Signature> {
+//   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
+
+//   const dataForHash = concat([
+//     nonceBytesLike,
+//     signerWallet.address,
+//     newImplementationAddress
+//   ])
+//   // console.log('dataForHash: ', dataForHash)
+//   const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
+//   return sign
+// }
 
 export async function signMessage (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
+
+  console.log('inin signMessage')
 
   const dataForHash = concat([
     nonceBytesLike,
@@ -344,6 +361,18 @@ export async function signMessage (signerWallet: Wallet, accountAddress: string,
     data
   ])
   const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
+  return sign
+}
+
+export async function signMessageWithoutChainId (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
+  const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
+
+  const dataForHash = concat([
+    nonceBytesLike,
+    signerWallet.address,
+    data
+  ])
+  const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0WithoutChainId(accountAddress, dataForHash))
   return sign
 }
 

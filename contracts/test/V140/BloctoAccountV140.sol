@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.17;
+pragma solidity ^0.8.12;
 
 /* solhint-disable avoid-low-level-calls */
 /* solhint-disable no-inline-assembly */
@@ -8,18 +8,18 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@account-abstraction/contracts/core/BaseAccount.sol";
 
-import "./TokenCallbackHandler.sol";
-import "./CoreWallet/CoreWallet.sol";
+import "../../TokenCallbackHandler.sol";
+import "./CoreWalletV140.sol";
 
 /**
  * Blocto account.
  *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
  */
-contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
+contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV140, BaseAccount {
     /**
      *  This is the version of this contract.
      */
-    string public constant VERSION = "1.5.0";
+    string public constant VERSION = "1.4.0";
 
     /// @notice etnrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
@@ -69,7 +69,6 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
      */
     function executeBatch(address[] calldata dest, uint256[] calldata value, bytes[] calldata func) external {
         _requireFromEntryPoint();
-        require(dest.length == value.length, "wrong array lengths");
         require(dest.length == func.length, "wrong array lengths");
         for (uint256 i = 0; i < dest.length; i++) {
             _call(dest[i], value[i], func[i]);
@@ -147,7 +146,4 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
     }
-
-    /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    // uint256[50] private __gap;
 }
