@@ -8,7 +8,9 @@ import {
   BloctoAccountCloneableWalletV140__factory,
   CREATE3Factory,
   TestBloctoAccountCloneableWalletV200,
-  TestBloctoAccountCloneableWalletV200__factory
+  TestBloctoAccountCloneableWalletV200__factory,
+  TestERC20,
+  TestERC20__factory
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
@@ -21,7 +23,8 @@ import {
   txData,
   signMessage,
   getMergedKey,
-  signMessageWithoutChainId
+  signMessageWithoutChainId,
+  TWO_ETH
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad } from '@ethersproject/bytes'
@@ -41,6 +44,8 @@ describe('BloctoAccount Upgrade Test', function () {
   let entryPoint: EntryPoint
 
   let create3Factory: CREATE3Factory
+
+  let testERC20: TettERC20
 
   const NowVersion = '1.4.0'
   const NextVersion = '1.5.0'
@@ -74,6 +79,18 @@ describe('BloctoAccount Upgrade Test', function () {
     await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, upgradeToData)
   }
 
+  // use authorizedWallet and cosignerWallet to send ERC20 from wallet
+  async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<void> {
+    const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
+    const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+    console.log('testERC20.address: ', testERC20.address)
+    const data = txData(1, testERC20.address, BigNumber.from(0),
+      testERC20.interface.encodeFunctionData('transfer', [to, amount]))
+
+    const sign = withChainId ? await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, data) : await signMessageWithoutChainId(authorizedWallet, account.address, authorizeInAccountNonce, data)
+    await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
+  }
+
   before(async function () {
     // 3 wallet
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
@@ -104,6 +121,9 @@ describe('BloctoAccount Upgrade Test', function () {
       [implementation, entryPoint.address, await ethersSigner.getAddress()],
       { initializer: 'initialize' }, create3Factory, ethersSigner)
     await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
+
+    // testERC20 deploy
+    testERC20 = await new TestERC20__factory(ethersSigner).deploy('TestERC20', 'TST', 18)
   })
 
   // upgrade from v140
@@ -158,6 +178,22 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should send ERC20 token', async () => {
+      // prepare
+      const sendAccount = await testCreateAccount(2001)
+      const receiveAccount = await testCreateAccount(2002)
+      await testERC20.mint(sendAccount.address, TWO_ETH)
+
+      // test send ERC20
+      const before = await testERC20.balanceOf(sendAccount.address)
+      const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
+
+      await sendERC20(sendAccount, receiveAccount.address, ONE_ETH)
+
+      expect(await testERC20.balanceOf(sendAccount.address)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
     it('should create account with multiple authorized address', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
@@ -184,7 +220,7 @@ describe('BloctoAccount Upgrade Test', function () {
     })
   })
 
-  describe('should upgrade account to different version implementation', () => {
+  describe('should upgrade account to different implementation version', () => {
     const AccountSalt = 12345
     const MockEntryPointV070 = '0x000000000000000000000000000000000000E070'
     let accountV200: BloctoAccount
@@ -196,7 +232,7 @@ describe('BloctoAccount Upgrade Test', function () {
       implementationV200 = await new TestBloctoAccountCloneableWalletV200__factory(ethersSigner).deploy(MockEntryPointV070)
     })
 
-    it('new factory get new version and same acccount address', async () => {
+    it('new factory get new version and same account address', async () => {
       const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
       const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
       const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
@@ -242,7 +278,7 @@ describe('BloctoAccount Upgrade Test', function () {
   describe('should upgrade factory to different version implementation', () => {
     const TestSalt = 135341
 
-    it('new factory get new version but same acccount address', async () => {
+    it('new factory get new version but same account address', async () => {
       const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
 
       const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
