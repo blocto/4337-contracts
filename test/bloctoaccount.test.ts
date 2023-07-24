@@ -1,9 +1,11 @@
 import { ethers } from 'hardhat'
-import { Wallet, BigNumber } from 'ethers'
+import { Wallet, BigNumber, BaseContract } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccount,
+  BloctoAccountV140,
   BloctoAccount__factory,
+  BloctoAccountV140__factory,
   BloctoAccountCloneableWallet__factory,
   BloctoAccountCloneableWalletV140__factory,
   CREATE3Factory,
@@ -69,21 +71,32 @@ describe('BloctoAccount Upgrade Test', function () {
   }
 
   // use authorizedWallet and cosignerWallet to upgrade wallet
+  // withChainId(true) -> for after v1.5.0 , else(false) -> for beforfe v1.4.0
   async function upgradeAccountToNewVersion (account: BloctoAccount, newImplementationAddr: string, withChainId: boolean = true): Promise<void> {
-    const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
+    // const accountV140 = account as BloctoAccountV140
+    // const originalNonce = withChainId ? (await account.nonce()) : (await account.nonces(authorizedWallet.address))
+    let newNonce: BigNumber
+    if (withChainId) {
+      account = account as BloctoAccount
+      newNonce = (await account.nonce()).add(1)
+    } else {
+      const accountV140 = await BloctoAccountV140__factory.connect(account.address, cosignerWallet)
+      newNonce = (await accountV140.nonces(authorizedWallet.address)).add(1)
+    }
+
     const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
     const upgradeToData = txData(1, account.address, BigNumber.from(0),
       account.interface.encodeFunctionData('upgradeTo', [newImplementationAddr]))
 
-    const sign = withChainId ? await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, upgradeToData) : await signMessageWithoutChainId(authorizedWallet, account.address, authorizeInAccountNonce, upgradeToData)
-    await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, upgradeToData)
+    const sign = withChainId ? await signMessage(authorizedWallet, account.address, newNonce, upgradeToData) : await signMessageWithoutChainId(authorizedWallet, account.address, newNonce, upgradeToData)
+    await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, upgradeToData)
   }
 
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
   async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<void> {
-    const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
+    // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
+    const authorizeInAccountNonce = (await account.nonce()).add(1)
     const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
-    console.log('testERC20.address: ', testERC20.address)
     const data = txData(1, testERC20.address, BigNumber.from(0),
       testERC20.interface.encodeFunctionData('transfer', [to, amount]))
 
@@ -127,12 +140,13 @@ describe('BloctoAccount Upgrade Test', function () {
   })
 
   // upgrade from v140
+  let accountV140: BloctoAccountV140
   let account: BloctoAccount
   it('creat previous version account', async () => {
     expect(await factory.VERSION()).to.eql(NowVersion)
 
-    account = await testCreateAccount(140)
-    expect(await account.VERSION()).to.eql(NowVersion)
+    accountV140 = await testCreateAccount(140) as unknown as BloctoAccountV140
+    expect(await accountV140.VERSION()).to.eql(NowVersion)
   })
 
   it('should delpoy new cloneble wallet and upgrade factory ', async () => {
@@ -156,7 +170,8 @@ describe('BloctoAccount Upgrade Test', function () {
   })
 
   it('should upgrade by account', async () => {
-    await upgradeAccountToNewVersion(account, implementation, false)
+    await upgradeAccountToNewVersion(accountV140, implementation, false)
+    account = accountV140 as unknown as BloctoAccount
     expect(await account.VERSION()).to.eql(NextVersion)
   })
 

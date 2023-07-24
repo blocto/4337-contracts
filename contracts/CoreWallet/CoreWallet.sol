@@ -76,7 +76,7 @@ contract CoreWallet is IERC1271 {
     /// @notice A per-key nonce value, incremented each time a transaction is processed with that key.
     ///  Used for replay prevention. The nonce value in the transaction must exactly equal the current
     ///  nonce value in the wallet for that key. (This mirrors the way Ethereum's transaction nonce works.)
-    mapping(address => uint256) public nonces;
+    uint256 public nonce;
 
     /// @notice A mapping tracking dynamically supported interfaces and their corresponding
     ///  implementation contracts. Keys are interface IDs and values are addresses of
@@ -562,7 +562,7 @@ contract CoreWallet is IERC1271 {
     /// @param v the v value for the signature; see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
     /// @param r the r value for the signature
     /// @param s the s value for the signature
-    /// @param nonce the nonce value for the signature
+    /// @param inonce the nonce value for the signature
     /// @param authorizedAddress the address of the authorization key; this is used here so that cosigner signatures are interchangeable
     ///  between this function and `invoke2()`
     /// @param data The data containing the transactions to be invoked; see internalInvoke for details.
@@ -570,7 +570,7 @@ contract CoreWallet is IERC1271 {
         uint8 v,
         bytes32 r,
         bytes32 s,
-        uint256 nonce,
+        uint256 inonce,
         address authorizedAddress,
         bytes calldata data
     ) external {
@@ -579,7 +579,7 @@ contract CoreWallet is IERC1271 {
         require(s <= S_MAX, "s of signature is too large");
         // calculate hash
         bytes32 operationHash = keccak256(
-            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, nonce, authorizedAddress, data)
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, inonce, authorizedAddress, data)
         );
 
         // recover signer
@@ -589,7 +589,7 @@ contract CoreWallet is IERC1271 {
         require(signer != address(0), "Invalid signature.");
 
         // check nonce
-        require(nonce > nonces[signer] && (nonce < (nonces[signer] + 10)), "must use valid nonce for signer");
+        require(inonce > nonce && (inonce < (nonce + 10)), "must use valid nonce for signer");
 
         // check signer
         require(signer == authorizedAddress, "authorized addresses must be equal");
@@ -602,7 +602,7 @@ contract CoreWallet is IERC1271 {
         require(requiredCosigner == signer || requiredCosigner == msg.sender, "Invalid authorization.");
 
         // set nonce
-        nonces[signer] = nonce;
+        nonce = inonce;
 
         // call internal function
         internalInvoke(operationHash, data);
@@ -620,8 +620,6 @@ contract CoreWallet is IERC1271 {
         // so perhaps this check is redundant
         require(v == 27 || v == 28, "Invalid signature version.");
         require(s <= S_MAX, "s of signature is too large");
-
-        uint256 nonce = nonces[msg.sender];
 
         // calculate hash
         bytes32 operationHash = keccak256(
@@ -642,7 +640,7 @@ contract CoreWallet is IERC1271 {
         require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "Invalid authorization.");
 
         // increment nonce to prevent replay attacks
-        nonces[msg.sender] = nonce + 1;
+        nonce++;
 
         internalInvoke(operationHash, data);
     }
