@@ -21,7 +21,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
      */
     string public constant VERSION = "1.5.0";
 
-    /// @notice etnrypoint from 4337 official
+    /// @notice entrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
 
     /// @notice initialized _IMPLEMENTATION_SLOT
@@ -37,6 +37,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
 
     /**
      * override from UUPSUpgradeable
+     * @notice onlyInvoked modifier for only this account owner can enter this function, and (newImplementation) for compiler and it extends from UUPSUpgradeable, so it shoule be here
      * @param newImplementation implementation address
      */
     function _authorizeUpgrade(address newImplementation) internal view override onlyInvoked {
@@ -92,7 +93,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     }
 
     /**
-     * implement validate signature method of BaseAccount from etnrypoint
+     * implement validate signature method of BaseAccount from entrypoint
      * @param userOp user operation including signature for validating
      * @param userOpHash user operation hash
      */
@@ -133,8 +134,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
 
-    /// @notice Used to decorate the `init` function so this can only be called one time. Necessary
-    ///  since this contract will often be used as a "clone". (See above.)
+    /// @notice only once for initialized initializedImplementation
     modifier onlyOnceInitImplementation() {
         require(!initializedImplementation, "must not already be initialized");
         initializedImplementation = true;
