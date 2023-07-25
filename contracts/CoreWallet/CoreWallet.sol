@@ -62,9 +62,6 @@ contract CoreWallet is IERC1271 {
     ///  The values in this mapping are 256bit words, whose lower 20 bytes constitute "cosigners"
     ///  for each address. If an address maps to itself, then that address is said to have no cosigner.
     ///
-    ///  The upper 12 bytes are reserved for future meta-data purposes.  The meta-data could refer
-    ///  to the key (authorized address) or the value (cosigner) of the mapping.
-    ///
     ///  Addresses that map to a non-zero cosigner in the current authVersion are called
     ///  "authorized addresses".
     mapping(uint256 => uint256) public authorizations;
