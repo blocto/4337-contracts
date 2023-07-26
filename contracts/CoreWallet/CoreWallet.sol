@@ -226,7 +226,7 @@ contract CoreWallet is IERC1271 {
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public onlyOnce {
-        require(_authorizedAddresses.length > 0, "invalid _authorizedAddresses array");
+        require(_authorizedAddresses.length != 0, "invalid _authorizedAddresses array");
         require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "Array length not match with.");
         require(_authorizedAddresses.length == _mergedKeys.length, "Array length not match.");
         require(address(uint160(_cosigner)) != address(0), "The cosigner address must not be zero.");
@@ -435,8 +435,7 @@ contract CoreWallet is IERC1271 {
     /// @param _version the version of the mapping which you want to delete (unshifted)
     /// @param _keys the authorization keys to delete
     function recoverGas(uint256 _version, address[] calldata _keys) external {
-        // TODO: should this be 0xffffffffffffffffffffffff ?
-        require(_version > 0 && _version < 0xffffffff, "Invalid version number.");
+        require(_version > 0 && _version < 0xffffffffffffffffffffffff, "Invalid version number.");
 
         uint256 shiftedVersion = _version << 160;
 
