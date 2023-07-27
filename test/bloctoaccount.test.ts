@@ -11,8 +11,8 @@ import {
   CREATE3Factory,
   TestBloctoAccountCloneableWalletV200,
   TestBloctoAccountCloneableWalletV200__factory,
-  TestERC20,
-  TestERC20__factory
+  TestERC20__factory,
+  BloctoAccountFactory__factory
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 import {
@@ -149,7 +149,7 @@ describe('BloctoAccount Upgrade Test', function () {
     expect(await accountV140.VERSION()).to.eql(NowVersion)
   })
 
-  it('should delpoy new cloneble wallet and upgrade factory ', async () => {
+  it('should delpoy new cloneable wallet and upgrade factory ', async () => {
     // deploy BloctoAccount next version
     const accountSalt = hexZeroPad(Buffer.from('BloctoAccount_next_version', 'utf-8'), 32)
     implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
@@ -312,9 +312,11 @@ describe('BloctoAccount Upgrade Test', function () {
       const createAccountWallet = await createTmpAccount()
       await fund(createAccountWallet.address)
       // grant account role
-      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await createAccountWallet.address)
+      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), createAccountWallet.address)
+      expect(await factory.hasRole(await factory.CREATE_ACCOUNT_ROLE(), createAccountWallet.address)).true
+
       // create account with createAccountWallet
-      const factoryWithCreateAccount = await factory.connect(createAccountWallet)
+      const factoryWithCreateAccount = BloctoAccountFactory__factory.connect(factory.address, createAccountWallet)
       const mergedKeyIndex = 0
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
 
