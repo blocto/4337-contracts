@@ -24,4 +24,12 @@ contract TestERC20 is ERC20, ERC20Burnable, AccessControl {
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
+
+    function senderBalance() public view returns (uint256) {
+        return balanceOf(msg.sender);
+    }
+
+    function payableLookBalance() public payable returns (uint256) {
+        return balanceOf(msg.sender);
+    }
 }

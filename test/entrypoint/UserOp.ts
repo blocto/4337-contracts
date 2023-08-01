@@ -5,11 +5,8 @@ import {
   keccak256
 } from 'ethers/lib/utils'
 import { BigNumber, Contract, Signer, Wallet } from 'ethers'
-import { AddressZero, callDataCost, rethrow } from '../testutils'
+import { AddressZero, callDataCost, rethrow, hashMessageEIP191V0, sign2Str } from '../testutils'
 import { ecsign, toRpcSig, keccak256 as keccak256_buffer } from 'ethereumjs-util'
-import {
-  EntryPoint
-} from '../../typechain'
 import { UserOperation } from './UserOperation'
 import { Create2Factory } from '../../src/Create2Factory'
 
@@ -215,6 +212,25 @@ export async function fillAndSignWithCoSigner (op: Partial<UserOperation>, signe
   const cosignerSignature = await cosigner.signMessage(message)
   const signature = signerSignature + cosignerSignature.slice(2)
 
+  return {
+    ...op2,
+    signature: signature
+  }
+}
+
+export async function fillSignWithEIP191V0 (op: Partial<UserOperation>, signer: Wallet, cosigner: Wallet, entryPoint?: EntryPoint, account: string = ''): Promise<UserOperation> {
+  const provider = entryPoint?.provider
+  const op2 = await fillUserOp(op, entryPoint)
+
+  const chainId = await provider!.getNetwork().then(net => net.chainId)
+  const message = arrayify(getUserOpHash(op2, entryPoint!.address, chainId))
+
+  const hashData = hashMessageEIP191V0(chainId, account, message)
+  // console.log('hashData:', hashData)
+  const signerSignature = sign2Str(signer, hashData)
+  const cosignerSignature = sign2Str(cosigner, hashData)
+
+  const signature = signerSignature + cosignerSignature.slice(2)
   return {
     ...op2,
     signature: signature
