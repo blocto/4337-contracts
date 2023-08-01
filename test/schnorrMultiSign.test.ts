@@ -21,6 +21,7 @@ import {
 import Schnorrkel from '../src/schnorrkel.js/index'
 import { DefaultSigner } from './schnorrUtils'
 import { time } from 'console'
+import { zeroAddress } from 'ethereumjs-util'
 
 const ERC1271_MAGICVALUE_BYTES32 = '0x1626ba7e'
 
@@ -158,6 +159,7 @@ describe('Schnorr MultiSign Test', function () {
     const signerTwo = new DefaultSigner(cosignerWallet)
     const publicKeys = [signerOne.getPublicKey(), signerTwo.getPublicKey()]
     let account: BloctoAccount
+    let accountLinkCosigner: BloctoAccount
 
     let pxIndexWithParity: number
     let hexPxIndexWithParity: string
@@ -187,9 +189,6 @@ describe('Schnorr MultiSign Test', function () {
 
     before(async function () {
       const mergedKeyIndex = 128 + (0 << 1)
-      // const [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
-      // const signerOne = new DefaultSigner(authorizedWallet)
-      // const signerTwo = new DefaultSigner(cosignerWallet)
 
       const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
       const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
@@ -207,6 +206,9 @@ describe('Schnorr MultiSign Test', function () {
         px,
         factory
       )
+
+      accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+      await fund(cosignerWallet.address)
     })
 
     it('should sign Schnorr message', async () => {
@@ -225,7 +227,7 @@ describe('Schnorr MultiSign Test', function () {
       const setMergedKeyData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setMergedKey', [pxIndexWithParity, '0x' + '0'.repeat(64)]))
       const sign = await signMessage(authorizedWallet, account.address, newNonce, setMergedKeyData)
-      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+
       await fund(cosignerWallet.address)
       await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setMergedKeyData)
 
@@ -242,16 +244,11 @@ describe('Schnorr MultiSign Test', function () {
       const setMergedKeyData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setMergedKey', [pxIndexWithParity, px]))
       const sign = await signMessage(authorizedWallet, account.address, newNonce, setMergedKeyData)
-      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
-      await fund(cosignerWallet.address)
       await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setMergedKeyData)
 
       const authVersion = await account.authVersion()
       expect(await account.mergedKeys(authVersion.add(pxIndexWithParity))).to.equal(px)
     })
-
-    // expect(await validateSignData()).to.equal(ERC1271_MAGICVALUE_BYTES32)
-    // await expect(validateSignData()).to.revertedWith('ecrecover failed')
 
     it('should revert if revoke merged key 2', async () => {
       // test setMergedKey
@@ -259,31 +256,87 @@ describe('Schnorr MultiSign Test', function () {
       const setMergedKeyData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setMergedKey', [pxIndexWithParity, '0x' + '0'.repeat(64)]))
       const sign = await signMessage(authorizedWallet, account.address, newNonce, setMergedKeyData)
-      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
-      await fund(cosignerWallet.address)
       await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setMergedKeyData)
 
       await expect(validateSignData()).to.revertedWith('ecrecover failed')
     })
 
-    it('should update key by setAuthorized()', async () => {
-      // now the merged key is revoked, so we can set new merged key
-      await expect(validateSignData()).to.revertedWith('ecrecover failed')
-
+    describe('setAuthorized() function test', () => {
       const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
       const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
-      // test setMergedKey
-      const newNonce = (await account.nonce()).add(1)
-      const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
-        account.interface.encodeFunctionData('setAuthorized', [authorizedWallet.address, cosignerWallet.address, pxIndexWithParity, px]))
-      const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
-      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
-      await fund(cosignerWallet.address)
-      await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+      let newNonce = BigNumber.from(0)
 
-      const authVersion = await account.authVersion()
-      expect(await account.mergedKeys(authVersion.add(pxIndexWithParity))).to.equal(px)
-      expect(await account.authorizations(authVersion.add(authorizedWallet.address))).to.equal(cosignerWallet.address)
+      before(async function () {
+        newNonce = (await account.nonce()).add(1)
+      })
+
+      it('should revert if not internal invoke', async () => {
+        await expect(
+          accountLinkCosigner.setAuthorized(authorizedWallet.address, cosignerWallet.address, pxIndexWithParity, px)
+        ).to.revertedWith('must be called from `invoke()`')
+      })
+
+      it('should revert if authorized address is zero', async () => {
+        const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
+          account.interface.encodeFunctionData('setAuthorized', [zeroAddress(), cosignerWallet.address, pxIndexWithParity, px]))
+        const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
+
+        await expect(
+          accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+        ).to.revertedWith('authorized address must not be zero')
+      })
+
+      it('should revert if authorized address same as recovery address', async () => {
+        const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
+          account.interface.encodeFunctionData('setAuthorized', [recoverWallet.address, cosignerWallet.address, pxIndexWithParity, px]))
+        const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
+
+        await expect(
+          accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+        ).to.revertedWith('do not use the recovery address as an authorized address')
+      })
+
+      it('should revert if cosigner address same as recovery address', async () => {
+        const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
+          account.interface.encodeFunctionData('setAuthorized', [authorizedWallet.address, recoverWallet.address, pxIndexWithParity, px]))
+        const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
+
+        await expect(
+          accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+        ).to.revertedWith('do not use the recovery address as a cosigner')
+      })
+
+      it('should update key by setAuthorized()', async () => {
+        // now the merged key is revoked, so we can set new merged key
+        await expect(validateSignData()).to.revertedWith('ecrecover failed')
+
+        const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
+        const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
+        // test setMergedKey
+        const newNonce = (await account.nonce()).add(1)
+        const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
+          account.interface.encodeFunctionData('setAuthorized', [authorizedWallet.address, cosignerWallet.address, pxIndexWithParity, px]))
+        const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
+        await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+
+        const authVersion = await account.authVersion()
+        expect(await account.mergedKeys(authVersion.add(pxIndexWithParity))).to.equal(px)
+        expect(await account.authorizations(authVersion.add(authorizedWallet.address))).to.equal(cosignerWallet.address)
+      })
+
+      it('should update key by setAuthorized() to zero', async () => {
+        const px = '0x' + '0'.repeat(64)
+        // test setMergedKey
+        const newNonce = (await account.nonce()).add(1)
+        const setAuthorizedData = txData(1, account.address, BigNumber.from(0),
+          account.interface.encodeFunctionData('setAuthorized', [authorizedWallet.address, zeroAddress(), pxIndexWithParity, px]))
+        const sign = await signMessage(authorizedWallet, account.address, newNonce, setAuthorizedData)
+        await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setAuthorizedData)
+
+        const authVersion = await account.authVersion()
+        expect(await account.mergedKeys(authVersion.add(pxIndexWithParity))).to.equal(px)
+        expect(await account.authorizations(authVersion.add(authorizedWallet.address))).to.equal(zeroAddress())
+      })
     })
   })
 })

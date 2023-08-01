@@ -28,6 +28,7 @@ import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
+import { zeroAddress } from 'ethereumjs-util'
 
 const ShowLog = false
 
@@ -107,7 +108,6 @@ describe('BloctoAccount CoreWallet Test', function () {
   // use authorizedWallet and cosignerWallet to setDelegate from cosigner
   async function setDelegateByCosigner (account: BloctoAccount, interfaceId: string, delegateAddr: string,
     authorized: Wallet = authorizedWallet, cosigner: Wallet = cosignerWallet): Promise<void> {
-    // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
     const authorizeInAccountNonce = (await account.nonce()).add(1)
     const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosigner)
 
@@ -151,22 +151,39 @@ describe('BloctoAccount CoreWallet Test', function () {
     testERC20 = await new TestERC20__factory(ethersSigner).deploy('TestERC20', 'TST', 18)
   })
 
-  describe('emergency recovery performed (emergencyRecovery)', () => {
+  describe('emergency recovery performed - emergencyRecovery', () => {
     let account: BloctoAccount
 
     const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
     let curAuthVersion: BigNumber
-    // let accountLinkCosigner2: BloctoAccount
+    let accountLinkRecovery: BloctoAccount
+    const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
 
     before(async function () {
       // account for test
       account = await testCreateAccount(WalletSalt)
-      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
       // must call with recovery address
       curAuthVersion = await account.authVersion()
       // fund
       await fund(recoverWallet.address)
+      await fund(recoverWallet2.address)
       await fund(cosignerWallet2.address)
+      accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet)
+    })
+
+    it('should not be able to emergencyRecovery with wrong key', async () => {
+      const tmpAccount = await createTmpAccount()
+      const accountLinkWrongRecovery = BloctoAccount__factory.connect(account.address, tmpAccount)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        accountLinkWrongRecovery.emergencyRecovery(authorizedWallet2.address, cosignerWallet2.address, pxIndexWithParity2, px2)
+      ).to.be.revertedWith('sender must be recovery address')
+    })
+
+    it('should be able to emergencyRecovery', async () => {
+      // const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
       const accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet)
       const res = await accountLinkRecovery.emergencyRecovery(authorizedWallet2.address, cosignerWallet2.address, pxIndexWithParity2, px2)
       const receipt = await res.wait()
@@ -214,6 +231,24 @@ describe('BloctoAccount CoreWallet Test', function () {
       log('recoverGas gas used: ', (await res.wait()).gasUsed)
     })
 
+    it('should not authorized with zero address', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery(zeroAddress(), cosignerWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('authorized address must not be zero')
+    })
+
+    it('should not authorized same as recovery', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery(recoverWallet.address, cosignerWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('do not use the recovery address as an authorized address')
+    })
+
+    it('should not init cosigner is zero address', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery(authorizedWallet2.address, zeroAddress(), pxIndexWithParity2, px2)
+      ).to.revertedWith('cosigner address must not be zero')
+    })
+
     it('should be able to set a new recovery address', async function () {
       const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
@@ -224,26 +259,35 @@ describe('BloctoAccount CoreWallet Test', function () {
     })
   })
 
-  describe('emergency recovery 2 performed (emergencyRecovery2)', () => {
+  describe('emergency recovery 2 performed - emergencyRecovery2', () => {
     let account: BloctoAccount
+    let accountLinkRecovery: BloctoAccount
 
     const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
     let curAuthVersion: BigNumber
+    const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
     // let accountLinkCosigner2: BloctoAccount
 
     before(async function () {
       account = await testCreateAccount(WalletSalt + 2)
-      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+      // const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
       // must call with recovery address
       curAuthVersion = await account.authVersion()
       // fund
       await fund(recoverWallet.address)
+      await fund(recoverWallet2.address)
       await fund(cosignerWallet2.address)
-      const accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet)
+      accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet)
       const res = await accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, cosignerWallet2.address, recoverWallet2.address, pxIndexWithParity2, px2)
       const receipt = await res.wait()
       // 81313
       log('emergencyRecovery gas used: ', receipt.gasUsed.toString())
+    })
+
+    it('should not perform emergencyRecovery2 if wrong key', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, cosignerWallet2.address, recoverWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('sender must be recovery address')
     })
 
     it('backup key is different (check new authorized & cosigner)', async () => {
@@ -286,6 +330,16 @@ describe('BloctoAccount CoreWallet Test', function () {
       log('recoverGas gas used: ', (await res.wait()).gasUsed)
     })
 
+    it('should not be able to recover gas for now version', async function () {
+      // call recover gas
+      // anyone can call recover gas
+      const anyAccount = createTmpAccount()
+      await fund(anyAccount.address)
+      const accountLinkAny = BloctoAccount__factory.connect(account.address, anyAccount)
+      const res = await accountLinkAny.recoverGas(1, [authorizedWallet.address])
+      log('recoverGas gas used: ', (await res.wait()).gasUsed)
+    })
+
     it('should be able to set a new recovery address', async function () {
       const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
@@ -293,6 +347,36 @@ describe('BloctoAccount CoreWallet Test', function () {
       await invokeWithCosigner(account, setRecoveryAddressData, authorizedWallet2, cosignerWallet2)
 
       expect(await account.recoveryAddress()).to.equal(recoverWallet2.address)
+    })
+
+    it('should not authorized with zero address', async () => {
+      accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet2)
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(zeroAddress(), cosignerWallet2.address, recoverWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('authorized address must not be zero')
+    })
+
+    it('should not authorized same as recovery', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(recoverWallet2.address, cosignerWallet2.address, recoverWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('do not use the recovery address as an authorized address')
+    })
+
+    it('should not cosigner same as recovery', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, recoverWallet.address, recoverWallet.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('do not use the recovery address as a cosigner')
+    })
+
+    it('should not cosigner is zero address', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, zeroAddress(), recoverWallet2.address, pxIndexWithParity2, px2)
+      ).to.revertedWith('cosigner address must not be zero')
+    })
+    it('should not recovery is zero address', async () => {
+      await expect(
+        accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, cosignerWallet2.address, zeroAddress(), pxIndexWithParity2, px2)
+      ).to.revertedWith('cosigner address must not be zero')
     })
   })
 
@@ -439,6 +523,15 @@ describe('BloctoAccount CoreWallet Test', function () {
       await fund(cosignerWallet2.address)
     })
 
+    it('should not be able to delegate function with wrong key', async () => {
+      const tmpAccount = createTmpAccount()
+      const interfaceId = testERC20.interface.encodeFunctionData('senderBalance')
+
+      await expect(
+        setDelegateByCosigner(account, interfaceId, testERC20.address, authorizedWallet2, tmpAccount)
+      ).to.revertedWith('must be called from `invoke()`')
+    })
+
     it('should be able to delegate function', async () => {
       await testERC20.mint(account.address, TWO_ETH)
 
@@ -461,6 +554,131 @@ describe('BloctoAccount CoreWallet Test', function () {
       const beforeRecevive = await ethers.provider.getBalance(account.address)
       await accountERC20.payableLookBalance({ value: ONE_ETH })
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+  })
+
+  describe('init function test', () => {
+    let account: BloctoAccount
+    before(async function () {
+      const fakeEntrypoint = createTmpAccount()
+      account = await new BloctoAccount__factory(ethersSigner).deploy(fakeEntrypoint.address)
+    })
+    it('should not init authorized with zero address', async () => {
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      await expect(account.init(zeroAddress(), fakeAddr, fakeAddr, 1, '0x' + 'a'.repeat(64))).to.revertedWith('authorized addresses must not be zero')
+    })
+
+    it('should not init authorized same as recovery', async () => {
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      const diffFakeAddr = '0x' + 'b'.repeat(40)
+      await expect(account.init(fakeAddr, diffFakeAddr, fakeAddr, 1, '0x' + 'a'.repeat(64))).to.revertedWith('do not use the recovery address as an authorized address')
+    })
+
+    it('should not init cosigner same as recovery', async () => {
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      const diffFakeAddr = '0x' + 'b'.repeat(40)
+      await expect(account.init(diffFakeAddr, fakeAddr, fakeAddr, 1, '0x' + 'a'.repeat(64))).to.revertedWith('do not use the recovery address as a cosigner')
+    })
+
+    it('should not init cosigner is zero address', async () => {
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      const diffFakeAddr = '0x' + 'b'.repeat(40)
+      await expect(account.init(diffFakeAddr, zeroAddress(), fakeAddr, 1, '0x' + 'a'.repeat(64))).to.revertedWith('cosigner address must not be zero')
+    })
+  })
+
+  describe('init2 function test', () => {
+    let account: BloctoAccount
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+
+    before(async function () {
+      const fakeEntrypoint = createTmpAccount()
+      account = await new BloctoAccount__factory(ethersSigner).deploy(fakeEntrypoint.address)
+    })
+
+    it('should not init2 authorized zero length array', async () => {
+      await expect(
+        account.init2(
+          [],
+          cosignerWallet2.address, recoverWallet2.address,
+          [],
+          [])
+      ).to.revertedWith('invalid authorizedAddresses array')
+    })
+
+    it('should not init2 array length fail', async () => {
+      await expect(
+        account.init2(
+          [authorizedWallet.address, authorizedWallet2.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          [],
+          [])
+      ).to.revertedWith('array length not match')
+    })
+
+    it('should not init2 array length fail 2', async () => {
+      const [, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        account.init2(
+          [authorizedWallet.address, authorizedWallet2.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [])
+      ).to.revertedWith('array length not match')
+    })
+
+    it('should not init2 cosigner address be zero', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        account.init2(
+          [authorizedWallet.address, authorizedWallet2.address],
+          zeroAddress(), recoverWallet2.address,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('cosigner address must not be zero')
+    })
+
+    it('should not init2 authorized address be zero', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        account.init2(
+          [zeroAddress(), authorizedWallet2.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('authorized addresses must not be zero')
+    })
+
+    it('should not init2 use the recovery address as an cosigner address', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        account.init2(
+          [authorizedWallet.address, authorizedWallet2.address],
+          recoverWallet2.address, recoverWallet2.address,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('do not use the recovery address as a cosigner')
+    })
+
+    it('should not init2 use the recovery address as an authorized address', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        account.init2(
+          [authorizedWallet.address, recoverWallet2.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('do not use the recovery address as an authorized address')
     })
   })
 })

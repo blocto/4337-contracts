@@ -198,10 +198,10 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public onlyOnce {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner address must not be zero.");
+        require(_authorizedAddress != address(0), "authorized addresses must not be zero");
+        require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
+        require(address(uint160(_cosigner)) != address(0), "cosigner address must not be zero");
 
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
@@ -226,18 +226,18 @@ contract CoreWallet is IERC1271 {
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public onlyOnce {
-        require(_authorizedAddresses.length != 0, "invalid _authorizedAddresses array");
-        require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "Array length not match with.");
-        require(_authorizedAddresses.length == _mergedKeys.length, "Array length not match.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner address must not be zero.");
+        require(_authorizedAddresses.length != 0, "invalid authorizedAddresses array");
+        require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "array length not match");
+        require(_authorizedAddresses.length == _mergedKeys.length, "array length not match");
+        require(address(uint160(_cosigner)) != address(0), "cosigner address must not be zero");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
         for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
             address _authorizedAddress = _authorizedAddresses[i];
-            require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-            require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-            require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
+            require(_authorizedAddress != address(0), "authorized addresses must not be zero");
+            require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
             authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
             mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
 
@@ -323,12 +323,12 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedIndexWithParity,
         bytes32 _mergedKey
     ) external onlyInvoked {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != recoveryAddress, "do not use the recovery address as an authorized address");
         require(
             (address(uint160(_cosigner)) == address(0) && _mergedKey == 0)
                 || address(uint160(_cosigner)) != recoveryAddress,
-            "Do not use the recovery address as a cosigner."
+            "do not use the recovery address as a cosigner"
         );
 
         authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
@@ -362,9 +362,9 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) external onlyRecoveryAddress {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != address(0), "cosigner must not be zero");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
@@ -389,10 +389,11 @@ contract CoreWallet is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) external onlyRecoveryAddress {
-        require(_authorizedAddress != address(0), "Authorized address must not be zero.");
-        require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
-        require(_recoveryAddress != address(0), "Recovery address must not be zero.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != address(0), "cosigner must not be zero");
+        require(_recoveryAddress != address(0), "recovery address must not be zero");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
