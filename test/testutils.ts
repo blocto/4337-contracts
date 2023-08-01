@@ -23,6 +23,8 @@ import { expect } from 'chai'
 import { Create2Factory } from '../src/Create2Factory'
 import Schnorrkel from '../src/schnorrkel.js/index'
 import { DefaultSigner } from './schnorrUtils'
+import { toBuffer, fromSigned, toUnsigned, bufferToInt, addHexPrefix } from 'ethereumjs-util'
+import { intToHex, stripHexPrefix } from 'ethjs-util'
 
 export const AddressZero = ethers.constants.AddressZero
 export const HashZero = ethers.constants.HashZero
@@ -337,12 +339,12 @@ export function hashMessageEIP191V0WithoutChainId (address: string, message: Byt
   ]))
 }
 
-export async function signMessage (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
+export async function signMessage (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array, addrForData: string = signerWallet.address): Promise<Signature> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
 
   const dataForHash = concat([
     nonceBytesLike,
-    signerWallet.address,
+    addrForData,
     data
   ])
   const sign = signerWallet._signingKey().signDigest(hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddress, dataForHash))
@@ -375,4 +377,36 @@ export function getMergedKey (wallet1: Wallet, wallet2: Wallet, mergedKeyIndex: 
   const pxIndexWithParity = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndex
 
   return [px, pxIndexWithParity]
+}
+
+function padWithZeroes (hexString: string, targetLength: number): string {
+  if (hexString !== '' && !/^[a-f0-9]+$/iu.test(hexString)) {
+    throw new Error(
+        `Expected an unprefixed hex string. Received: ${hexString}`
+    )
+  }
+
+  if (targetLength < 0) {
+    throw new Error(
+        `Expected a non-negative integer target length. Received: ${targetLength}`
+    )
+  }
+
+  return String.prototype.padStart.call(hexString, targetLength, '0')
+}
+
+function concatSig (v: Buffer, r: Buffer, s: Buffer): string {
+  const rSig = fromSigned(r)
+  const sSig = fromSigned(s)
+  const vSig = bufferToInt(v)
+  const rStr = padWithZeroes(toUnsigned(rSig).toString('hex'), 64)
+  const sStr = padWithZeroes(toUnsigned(sSig).toString('hex'), 64)
+  const vStr = stripHexPrefix(intToHex(vSig))
+  return addHexPrefix(rStr.concat(sStr, vStr))
+}
+
+export function sign2Str (signer: Wallet, data: string): string {
+  const sig = signer._signingKey().signDigest(data)
+
+  return concatSig(toBuffer(sig.v), toBuffer(sig.r), toBuffer(sig.s))
 }

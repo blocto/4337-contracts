@@ -5,42 +5,21 @@ import {
   EntryPoint,
   BloctoAccount,
   BloctoAccountFactory,
-  BloctoAccountCloneableWallet,
-  BloctoAccountCloneableWallet__factory,
-  BloctoAccountFactory,
-  BloctoAccountFactory__factory
+  BloctoAccountCloneableWallet__factory
 } from '../../typechain'
 import {
-  AddressZero,
-  createAccountOwner,
   fund,
   checkForGeth,
-  rethrow,
-  tostr,
-  getAccountInitCode,
-  getAccountInitCode2,
-  calcGasUsage,
-  ONE_ETH,
-  TWO_ETH,
   deployEntryPoint,
-  getBalance,
   createAddress,
-  getAccountAddress,
-  HashZero,
   simulationResultCatch,
-  createTmpAccount,
   createAccount,
   createAuthorizedCosignerRecoverWallet,
   getMergedKey
 } from '../testutils'
-import { checkForBannedOps } from './entrypoint_utils'
-import { DefaultsForUserOp, getUserOpHash, fillAndSignWithCoSigner } from './UserOp'
-import { UserOperation } from './UserOperation'
-import { PopulatedTransaction } from 'ethers/lib/ethers'
+import { getUserOpHash, fillAndSignWithCoSigner } from './UserOp'
 import { ethers } from 'hardhat'
-import { arrayify, defaultAbiCoder, hexConcat, hexZeroPad, parseEther } from 'ethers/lib/utils'
-import { BytesLike } from '@ethersproject/bytes'
-import { toChecksumAddress } from 'ethereumjs-util'
+import { hexConcat } from 'ethers/lib/utils'
 
 describe('EntryPoint', function () {
   let entryPoint: EntryPoint

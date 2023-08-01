@@ -12,26 +12,38 @@ import {
   TestBloctoAccountCloneableWalletV200,
   TestBloctoAccountCloneableWalletV200__factory,
   TestERC20__factory,
-  BloctoAccountFactory__factory
+  BloctoAccountFactory__factory,
+  BloctoAccountFactory
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
+
 import {
   fund,
   createTmpAccount,
   createAccount,
   deployEntryPoint,
   ONE_ETH,
+  TWO_ETH,
   createAuthorizedCosignerRecoverWallet,
   txData,
   signMessage,
   getMergedKey,
   signMessageWithoutChainId,
-  TWO_ETH
+  rethrow
+
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
+import { mine } from '@nomicfoundation/hardhat-network-helpers'
+
+import { fillUserOpDefaults, getUserOpHash, packUserOp, signUserOp, fillAndSignWithCoSigner, fillSignWithEIP191V0 } from './entrypoint/UserOp'
+import { UserOperation } from './entrypoint/UserOperation'
+
+import { hexConcat } from 'ethers/lib/utils'
+import { zeroAddress } from 'ethereumjs-util'
+import { create } from 'domain'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -47,12 +59,12 @@ describe('BloctoAccount Upgrade Test', function () {
 
   let create3Factory: CREATE3Factory
 
-  let testERC20: TettERC20
+  let testERC20: TestERC20__factory
 
   const NowVersion = '1.4.0'
   const NextVersion = '1.5.0'
 
-  async function testCreateAccount (salt = 0, mergedKeyIndex = 0): Promise<BloctoAccount> {
+  async function testCreateAccount (salt = 0, mergedKeyIndex = 0, ifactory = factory): Promise<BloctoAccount> {
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
 
     const account = await createAccount(
@@ -63,7 +75,7 @@ describe('BloctoAccount Upgrade Test', function () {
       BigNumber.from(salt),
       pxIndexWithParity,
       px,
-      factory
+      ifactory
     )
     await fund(account)
 
@@ -175,7 +187,7 @@ describe('BloctoAccount Upgrade Test', function () {
     expect(await account.VERSION()).to.eql(NextVersion)
   })
 
-  describe('wallet function', () => {
+  describe('wallet functions', () => {
     const AccountSalt = 123
 
     it('should receive native token', async () => {
@@ -290,6 +302,130 @@ describe('BloctoAccount Upgrade Test', function () {
     })
   })
 
+  describe('4337 functions', () => {
+    let account: BloctoAccount
+    let factory: BloctoAccountFactory
+
+    before(async () => {
+      const accountContractSalt = hexZeroPad(Buffer.from('BloctoAccount_test_4337', 'utf-8'), 32)
+      await create3Factory.deploy(
+        accountContractSalt,
+        getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPoint.address])
+      )
+
+      implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountContractSalt)
+      expect((await ethers.provider.getCode(implementation))).not.equal('0x')
+      const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+      const create3Salt = hexZeroPad(Buffer.from('AccountFactory_test_4337', 'utf-8'), 32)
+      factory = await create3DeployTransparentProxy(BloctoAccountFactory,
+        [implementation, entryPoint.address, await ethersSigner.getAddress()],
+        { initializer: 'initialize' }, create3Factory, ethersSigner, create3Salt)
+      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
+
+      account = await testCreateAccount(433700, 0, factory)
+    })
+
+    it('should execute transfer ERC20 from entrypoint', async () => {
+      const receiver = createTmpAccount()
+      const beneficiaryAddress = createTmpAccount().address
+      await testERC20.mint(account.address, TWO_ETH)
+      const erc20Transfer = await testERC20.populateTransaction.transfer(receiver.address, ONE_ETH)
+      const accountExecFromEntryPoint = await account.populateTransaction.execute(testERC20.address, 0, erc20Transfer.data!)
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account.address,
+        callGasLimit: 2e6,
+        verificationGasLimit: 1e5
+      }, authorizedWallet, cosignerWallet, entryPoint, account.address)
+
+      // start test
+      // test send ERC20
+      const beforeRecevive = await testERC20.balanceOf(receiver.address)
+      await entryPoint.handleOps([op1], beneficiaryAddress).catch((rethrow())).then(async r => r!.wait())
+
+      expect(await testERC20.balanceOf(receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should revert execute transfer ERC20 from entrypoint', async () => {
+      const account2 = await testCreateAccount(433702, 0, factory)
+      const beneficiaryAddress = createTmpAccount().address
+      // 0xf2fde38a: any non-exist function
+      const accountExecFromEntryPoint = await account2.populateTransaction.execute(testERC20.address, 0, '0xf2fde38a')
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account2.address,
+        callGasLimit: 500,
+        verificationGasLimit: 1e5
+      }, authorizedWallet, cosignerWallet, entryPoint, account.address)
+
+      // start test
+      await expect(entryPoint.handleOps([op1], beneficiaryAddress)).to.revertedWith('VM Exception while processing transaction: reverted with an unrecognized custom error')
+    })
+
+    it('should executeBatch transfer ERC20 from entrypoint', async () => {
+      const receiver1 = createTmpAccount()
+      const receiver2 = createTmpAccount()
+      const beneficiaryAddress = createTmpAccount().address
+      await testERC20.mint(account.address, TWO_ETH)
+      const erc20Transfer1 = await testERC20.populateTransaction.transfer(receiver1.address, ONE_ETH)
+      const erc20Transfer2 = await testERC20.populateTransaction.transfer(receiver2.address, ONE_ETH)
+      const accountExecFromEntryPoint = await account.populateTransaction.executeBatch(
+        [testERC20.address, testERC20.address],
+        [0, 0], [erc20Transfer1.data!, erc20Transfer2.data!])
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account.address,
+        callGasLimit: 2e6,
+        verificationGasLimit: 1e5
+      }, authorizedWallet, cosignerWallet, entryPoint, account.address)
+
+      // start test
+      // test send ERC20
+      const beforeRecevive1 = await testERC20.balanceOf(receiver1.address)
+      const beforeRecevive2 = await testERC20.balanceOf(receiver2.address)
+
+      await entryPoint.handleOps([op1], beneficiaryAddress).catch((rethrow())).then(async r => r!.wait())
+
+      expect(await testERC20.balanceOf(receiver1.address)).to.equal(beforeRecevive1.add(ONE_ETH))
+      expect(await testERC20.balanceOf(receiver2.address)).to.equal(beforeRecevive2.add(ONE_ETH))
+    })
+
+    it('should deposit & getDeposit by anyone', async () => {
+      const depositor = createTmpAccount()
+      await fund(depositor.address, '2')
+      const accountLinkDepositor = await BloctoAccount__factory.connect(account.address, depositor)
+      const beforeDeposit = await account.getDeposit()
+      await accountLinkDepositor.addDeposit({ value: ONE_ETH })
+      expect(await account.getDeposit()).to.equal(beforeDeposit.add(ONE_ETH))
+    })
+
+    it('should withdraw deposit', async () => {
+      const beneficiary = createTmpAccount()
+      const depositor = createTmpAccount()
+      await fund(depositor.address, '2')
+      const accountLinkDepositor = await BloctoAccount__factory.connect(account.address, depositor)
+      await accountLinkDepositor.addDeposit({ value: ONE_ETH })
+
+      const withdrawDepositToTx = await account.populateTransaction.withdrawDepositTo(beneficiary.address, ONE_ETH)
+      const accountExecFromEntryPoint = await account.populateTransaction.execute(account.address, 0, withdrawDepositToTx.data!)
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account.address,
+        callGasLimit: 2e6,
+        verificationGasLimit: 1e5
+      }, authorizedWallet, cosignerWallet, entryPoint, account.address)
+
+      const beforeRecevive = await ethers.provider.getBalance(beneficiary.address)
+      await entryPoint.handleOps([op1], depositor.address).catch((rethrow())).then(async r => r!.wait())
+      expect(await ethers.provider.getBalance(beneficiary.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+  })
+
+  // for Blocto Account Factory
   describe('should upgrade factory to different version implementation', () => {
     const TestSalt = 135341
 
@@ -330,6 +466,50 @@ describe('BloctoAccount Upgrade Test', function () {
         px,
         factoryWithCreateAccount
       )
+    })
+  })
+
+  describe('EOA entrypoint for _call fail test', () => {
+    let account: BloctoAccount
+    let factory: BloctoAccountFactory
+    const entrypointEOA = createTmpAccount()
+
+    before(async () => {
+      const accountContractSalt = hexZeroPad(Buffer.from('test_call_account', 'utf-8'), 32)
+      await create3Factory.deploy(
+        accountContractSalt,
+        getDeployCode(new BloctoAccountCloneableWallet__factory(), [entrypointEOA.address])
+      )
+
+      implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountContractSalt)
+      expect((await ethers.provider.getCode(implementation))).not.equal('0x')
+      const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+      const create3Salt = hexZeroPad(Buffer.from('test_call_factory', 'utf-8'), 32)
+      factory = await create3DeployTransparentProxy(BloctoAccountFactory,
+        [implementation, entrypointEOA.address, await ethersSigner.getAddress()],
+        { initializer: 'initialize' }, create3Factory, ethersSigner, create3Salt)
+      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
+
+      // create account with entrypoint EOA
+      const mergedKeyIndex = 0
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
+
+      account = await createAccount(
+        ethersSigner,
+        await authorizedWallet.getAddress(),
+        await cosignerWallet.getAddress(),
+        await recoverWallet.getAddress(),
+        BigNumber.from(6346346),
+        pxIndexWithParity,
+        px,
+        factory
+      )
+    })
+
+    it('should revert for execute non exist function', async () => {
+      const accountLinkEntrypoint = await BloctoAccount__factory.connect(account.address, entrypointEOA)
+      await expect(accountLinkEntrypoint.execute(testERC20.address, 0, '0xf2fde38a'))
+        .to.be.reverted
     })
   })
 })
