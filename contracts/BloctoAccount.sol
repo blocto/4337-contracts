@@ -149,5 +149,5 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     }
 
     /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    // uint256[50] private __gap;
+    uint256[50] private __gap;
 }

@@ -38,9 +38,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     }
 
     /// @notice create an account, and return its BloctoAccount.
-    ///     returns the address even if the account is already deployed.
-    ///     Note that during UserOperation execution, this method is called only if the account is not deployed.
-    ///     This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
     /// @param _authorizedAddress the initial authorized address, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
     /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
@@ -70,7 +67,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     }
 
     /// @notice create an account with multiple authorized addresses, and return its BloctoAccount.
-    ///     returns the address even if the account is already deployed.
     /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
     /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
@@ -119,31 +115,6 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
         require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
         bloctoAccountImplementation = _bloctoAccountImplementation;
-    }
-
-    /// @notice set the entrypoint
-    /// @param _entrypoint target entrypoint
-    function setEntrypoint(IEntryPoint _entrypoint) public {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(address(_entrypoint) != address(0), "Invalid entrypoint address.");
-        entryPoint = _entrypoint;
-    }
-
-    /// @notice withdraw value from the deposit
-    /// @param withdrawAddress target to send to
-    /// @param amount to withdraw
-    function withdrawTo(address payable withdrawAddress, uint256 amount) public {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(address(withdrawAddress) != address(0), "Invalid withdraw address.");
-        require(amount > 0, "Invalid withdraw amount.");
-        entryPoint.withdrawTo(withdrawAddress, amount);
-    }
-
-    /// @notice add stake in etnrypoint for this factory to avoid bundler reject
-    /// @param unstakeDelaySec - the unstake delay for this factory. Can only be increased.
-    function addStake(uint32 unstakeDelaySec) external payable {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        entryPoint.addStake{value: msg.value}(unstakeDelaySec);
     }
 
     /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
