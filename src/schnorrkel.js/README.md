@@ -1,0 +1,1 @@
+fork from: https://github.com/borislav-itskov/schnorrkel.js
