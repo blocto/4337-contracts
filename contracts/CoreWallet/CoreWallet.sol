@@ -265,7 +265,7 @@ contract CoreWallet is IERC1271 {
         }
         if (msg.data.length > 0) {
             address delegate = delegates[msg.sig];
-            require(delegate > COMPOSITE_PLACEHOLDER, "Invalid transaction");
+            require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
 
             // We have found a delegate contract that is responsible for the method signature of
             // this call. Now, pass along the calldata of this CALL to the delegate contract.
@@ -342,7 +342,7 @@ contract CoreWallet is IERC1271 {
     /// @param _mergedKeyIndexWithParity the merged key index
     /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
     function setMergedKey(uint8 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
-        require((_mergedKeyIndexWithParity & 0x80) > 0, "Invalid merged key index.");
+        require((_mergedKeyIndexWithParity & 0x80) > 0, "invalid merged key index");
         mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
         emit AuthorizedMergedKey(_mergedKeyIndexWithParity, _mergedKey);
     }
@@ -419,9 +419,9 @@ contract CoreWallet is IERC1271 {
     function setRecoveryAddress(address _recoveryAddress) external onlyInvoked {
         require(
             address(uint160(authorizations[authVersion + uint256(uint160(_recoveryAddress))])) == address(0),
-            "Do not use an authorized address as the recovery address."
+            "do not use an authorized address as the recovery address"
         );
-        require(_recoveryAddress != address(0), "Recovery address must not be zero.");
+        require(_recoveryAddress != address(0), "recovery address must not be zero");
 
         address previous = recoveryAddress;
         recoveryAddress = _recoveryAddress;
@@ -436,11 +436,11 @@ contract CoreWallet is IERC1271 {
     /// @param _version the version of the mapping which you want to delete (unshifted)
     /// @param _keys the authorization keys to delete
     function recoverGas(uint256 _version, address[] calldata _keys) external {
-        require(_version > 0 && _version < 0xffffffffffffffffffffffff, "Invalid version number.");
+        require(_version < 0xffffffffffffffffffffffff, "invalid version number");
 
         uint256 shiftedVersion = _version << 160;
 
-        require(shiftedVersion < authVersion, "You can only recover gas from expired authVersions.");
+        require(shiftedVersion < authVersion, "only recover gas from expired authVersions");
 
         for (uint256 i = 0; i < _keys.length; ++i) {
             delete(authorizations[shiftedVersion + uint256(uint160(_keys[i]))]);
@@ -548,7 +548,7 @@ contract CoreWallet is IERC1271 {
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner)
         require(
             address(uint160(authorizations[authVersion + uint256(uint160(msg.sender))])) == msg.sender,
-            "Invalid authorization."
+            "invalid authorization"
         );
 
         internalInvoke(0, data);
@@ -572,7 +572,7 @@ contract CoreWallet is IERC1271 {
         bytes calldata data
     ) external {
         // check signature version
-        require(v == 27 || v == 28, "Invalid signature version.");
+        require(v == 27 || v == 28, "invalid signature version");
         require(s <= S_MAX, "s of signature is too large");
         // calculate hash
         bytes32 operationHash = keccak256(
@@ -583,7 +583,7 @@ contract CoreWallet is IERC1271 {
         address signer = ecrecover(operationHash, v, r, s);
 
         // check for valid signature
-        require(signer != address(0), "Invalid signature.");
+        require(signer != address(0), "invalid signature");
 
         // check nonce
         require(inonce > nonce && (inonce < (nonce + 10)), "must use valid nonce for signer");
@@ -596,7 +596,7 @@ contract CoreWallet is IERC1271 {
 
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
         // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == signer || requiredCosigner == msg.sender, "Invalid authorization.");
+        require(requiredCosigner == signer || requiredCosigner == msg.sender, "invalid authorization");
 
         // set nonce
         nonce = inonce;
@@ -615,7 +615,7 @@ contract CoreWallet is IERC1271 {
         // check signature version
         // `ecrecover` will in fact return 0 if given invalid
         // so perhaps this check is redundant
-        require(v == 27 || v == 28, "Invalid signature version.");
+        require(v == 27 || v == 28, "invalid signature version");
         require(s <= S_MAX, "s of signature is too large");
 
         // calculate hash
@@ -627,14 +627,14 @@ contract CoreWallet is IERC1271 {
         address cosigner = ecrecover(operationHash, v, r, s);
 
         // check for valid signature
-        require(cosigner != address(0), "Invalid signature.");
+        require(cosigner != address(0), "invalid signature");
 
         // Get required cosigner
         address requiredCosigner = address(uint160(authorizations[authVersion + uint256(uint160(msg.sender))]));
 
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
         // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "Invalid authorization.");
+        require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "invalid authorization");
 
         // increment nonce to prevent replay attacks
         nonce++;
@@ -660,8 +660,8 @@ contract CoreWallet is IERC1271 {
 
         // We need to store a reference to this string as a variable so we can use it as an argument to
         // the revert call from assembly.
-        string memory invalidLengthMessage = "Data field too short";
-        string memory callFailed = "Call failed";
+        string memory invalidLengthMessage = "data field too short";
+        string memory callFailed = "call failed";
 
         // At an absolute minimum, the data field must be at least 85 bytes
         // <revert(1), to_address(20), value(32), data_length(32)>

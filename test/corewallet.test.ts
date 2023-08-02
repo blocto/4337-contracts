@@ -248,15 +248,6 @@ describe('BloctoAccount CoreWallet Test', function () {
         accountLinkRecovery.emergencyRecovery(authorizedWallet2.address, zeroAddress(), pxIndexWithParity2, px2)
       ).to.revertedWith('cosigner address must not be zero')
     })
-
-    it('should be able to set a new recovery address', async function () {
-      const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
-        account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
-
-      await invokeWithCosigner(account, setRecoveryAddressData, authorizedWallet2, cosignerWallet2)
-
-      expect(await account.recoveryAddress()).to.equal(recoverWallet2.address)
-    })
   })
 
   describe('emergency recovery 2 performed - emergencyRecovery2', () => {
@@ -320,26 +311,6 @@ describe('BloctoAccount CoreWallet Test', function () {
       expect(await account.authVersion()).to.equal(res)
     })
 
-    it('should be able to recover gas for previous version', async function () {
-      // call recover gas
-      // anyone can call recover gas
-      const anyAccount = createTmpAccount()
-      await fund(anyAccount.address)
-      const accountLinkAny = BloctoAccount__factory.connect(account.address, anyAccount)
-      const res = await accountLinkAny.recoverGas(1, [authorizedWallet.address])
-      log('recoverGas gas used: ', (await res.wait()).gasUsed)
-    })
-
-    it('should not be able to recover gas for now version', async function () {
-      // call recover gas
-      // anyone can call recover gas
-      const anyAccount = createTmpAccount()
-      await fund(anyAccount.address)
-      const accountLinkAny = BloctoAccount__factory.connect(account.address, anyAccount)
-      const res = await accountLinkAny.recoverGas(1, [authorizedWallet.address])
-      log('recoverGas gas used: ', (await res.wait()).gasUsed)
-    })
-
     it('should be able to set a new recovery address', async function () {
       const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
@@ -377,6 +348,109 @@ describe('BloctoAccount CoreWallet Test', function () {
       await expect(
         accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, cosignerWallet2.address, zeroAddress(), pxIndexWithParity2, px2)
       ).to.revertedWith('cosigner address must not be zero')
+    })
+  })
+
+  describe('recoverGas function', () => {
+    let account: BloctoAccount
+    let accountLinkAny: BloctoAccount
+
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+    before(async function () {
+      account = await testCreateAccount(WalletSalt + 359)
+
+      // emergencyRecovery2 one time
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+      const accountLinkRecovery = BloctoAccount__factory.connect(account.address, recoverWallet)
+      await accountLinkRecovery.emergencyRecovery2(authorizedWallet2.address, cosignerWallet2.address, recoverWallet2.address, pxIndexWithParity2, px2)
+
+      const anyAccount = createTmpAccount()
+      await fund(anyAccount.address)
+      accountLinkAny = BloctoAccount__factory.connect(account.address, anyAccount)
+    })
+
+    it('should not be able to recover gas for wrong version', async function () {
+      const authVersion = await account.authVersion()
+      await expect(
+        accountLinkAny.recoverGas(authVersion, [authorizedWallet.address])
+      ).to.revertedWith('invalid version number')
+    })
+
+    it('should not be able to recover gas for now version', async function () {
+      let authVersion = await account.authVersion()
+      authVersion = authVersion.shr(160)
+      await expect(
+        accountLinkAny.recoverGas(authVersion, [authorizedWallet.address])
+      ).to.revertedWith('only recover gas from expired authVersions')
+    })
+
+    it('should be able to recover gas for previous version', async function () {
+      let authVersion = await account.authVersion()
+      authVersion = authVersion.shr(160).sub(1)
+      const res = await accountLinkAny.recoverGas(authVersion, [authorizedWallet.address])
+      log('recoverGas gas used: ', (await res.wait()).gasUsed)
+    })
+  })
+
+  describe('setRecoveryAddress function', () => {
+    let account: BloctoAccount
+    const [, , recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+    before(async function () {
+      // account for test
+      account = await testCreateAccount(368)
+    })
+
+    it('should not be able to set a new recovery address by wrong key', async function () {
+      const tmpAccount = createTmpAccount()
+      const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
+
+      await expect(
+        invokeWithCosigner(account, setRecoveryAddressData, tmpAccount, cosignerWallet)
+      ).to.revertedWith('invalid authorization')
+    })
+
+    it('should not be able to directly call setRecoveryAddress', async function () {
+      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+
+      await expect(
+        accountLinkCosigner.setRecoveryAddress(recoverWallet2.address)
+      ).to.revertedWith('must be called from `invoke()`')
+    })
+
+    it('should not recovery address be zero address', async function () {
+      const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [zeroAddress()]))
+
+      await expect(
+        invokeWithCosigner(account, setRecoveryAddressData, authorizedWallet, cosignerWallet)
+      ).to.revertedWith('recovery address must not be zero')
+    })
+
+    it('should not use an authorized address as the recovery address ', async function () {
+      const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [authorizedWallet.address]))
+
+      await expect(
+        invokeWithCosigner(account, setRecoveryAddressData, authorizedWallet, cosignerWallet)
+      ).to.revertedWith('do not use an authorized address as the recovery address')
+    })
+
+    it('should not be able to directly set a new recovery address', async function () {
+      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+
+      await expect(
+        accountLinkCosigner.setRecoveryAddress(recoverWallet2.address)
+      ).to.revertedWith('must be called from `invoke()`')
+    })
+
+    it('should be able to set a new recovery address', async function () {
+      const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
+
+      await invokeWithCosigner(account, setRecoveryAddressData, authorizedWallet, cosignerWallet)
+
+      expect(await account.recoveryAddress()).to.equal(recoverWallet2.address)
     })
   })
 
@@ -420,10 +494,12 @@ describe('BloctoAccount CoreWallet Test', function () {
     })
 
     describe('isValidSignature test', () => {
+      // only one signature
       it('shoule return 0 for wrong authorized signature', async () => {
         const sig = '0x' + '2'.repeat(130)
         expect(await account.isValidSignature('0x' + '1'.repeat(64), sig)).to.equal('0x00000000')
       })
+
       it('shoule return 0 for wrong authorized with cosigner signature', async () => {
         const sig = '0x' + '2'.repeat(260)
         expect(await account.isValidSignature('0x' + '1'.repeat(64), sig)).to.equal('0x00000000')

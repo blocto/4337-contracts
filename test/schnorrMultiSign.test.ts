@@ -20,7 +20,6 @@ import {
 
 import Schnorrkel from '../src/schnorrkel.js/index'
 import { DefaultSigner } from './schnorrUtils'
-import { time } from 'console'
 import { zeroAddress } from 'ethereumjs-util'
 
 const ERC1271_MAGICVALUE_BYTES32 = '0x1626ba7e'
@@ -232,6 +231,21 @@ describe('Schnorr MultiSign Test', function () {
       await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setMergedKeyData)
 
       await expect(validateSignData()).to.revertedWith('ecrecover failed')
+    })
+
+    it('should revert if merged key index is wrong', async () => {
+      await expect(validateSignData()).to.revertedWith('ecrecover failed')
+      const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
+      const px = ethers.utils.hexlify(combinedPublicKey.buffer.slice(1, 33))
+
+      // test setMergedKey
+      const newNonce = (await account.nonce()).add(1)
+      const setMergedKeyData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setMergedKey', [0, px]))
+      const sign = await signMessage(authorizedWallet, account.address, newNonce, setMergedKeyData)
+      await expect(
+        accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, setMergedKeyData)
+      ).to.revertedWith('invalid merged key index')
     })
 
     it('should recover merged key', async () => {
