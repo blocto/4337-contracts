@@ -16,7 +16,7 @@ import {
 
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
-import { Bytes, BytesLike, hexZeroPad, concat } from '@ethersproject/bytes'
+import { Bytes, BytesLike, hexZeroPad, concat, Signature } from '@ethersproject/bytes'
 import { toUtf8Bytes } from '@ethersproject/strings'
 
 import { expect } from 'chai'
