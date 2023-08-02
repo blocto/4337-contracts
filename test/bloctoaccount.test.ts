@@ -245,6 +245,16 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should receive 0 native token', async () => {
+      const account = await testCreateAccount(249)
+      const [owner] = await ethers.getSigners()
+
+      await owner.sendTransaction({
+        to: account.address,
+        value: 0 // Sends exactly 0.0 ether
+      })
+    })
+
     it('should send ERC20 token', async () => {
       // prepare
       const sendAccount = await testCreateAccount(2001)
@@ -261,6 +271,24 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should revert if invalid data length', async () => {
+      // prepare
+      const account = await testCreateAccount(276)
+      await testERC20.mint(account.address, TWO_ETH)
+      const receiveAccount = await testCreateAccount(277)
+      const authorizeInAccountNonce = (await account.nonce()).add(1)
+      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+      const data = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiveAccount.address, ONE_ETH]))
+
+      const newData = data.slice(0, 70)
+      const sign = await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, newData)
+
+      await expect(
+        accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, newData)
+      ).to.revertedWith('data field too short')
+    })
+
     it('should create account with multiple authorized address', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
@@ -275,7 +303,7 @@ describe('BloctoAccount Upgrade Test', function () {
         [px, px2])
 
       const receipt = await tx.wait()
-      console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
+      // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
