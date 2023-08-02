@@ -15,7 +15,8 @@ import {
   createAuthorizedCosignerRecoverWallet,
   hashMessageEIP191V0,
   signMessage,
-  txData
+  txData,
+  createTmpAccount
 } from './testutils'
 
 import Schnorrkel from '../src/schnorrkel.js/index'
@@ -212,6 +213,29 @@ describe('Schnorr MultiSign Test', function () {
 
     it('should sign Schnorr message', async () => {
       expect(await validateSignData()).to.equal(ERC1271_MAGICVALUE_BYTES32)
+    })
+    it('should return 0 if sign Schnorr with wrong key', async () => {
+      const hackAccount = createTmpAccount()
+      const signerHack = new DefaultSigner(hackAccount)
+
+      // multisig
+      const msg = msgPrefix
+
+      const msgKeccak256 = ethers.utils.solidityKeccak256(['string'], [msg])
+
+      const publicNonces = [signerHack.getPublicNonces(), signerTwo.getPublicNonces()]
+      const msgEIP191V0 = hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, account.address, msgKeccak256)
+      const { signature: sigOne, challenge: e } = signerHack.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)
+      const { signature: sigTwo } = signerTwo.multiSignMessage(msgEIP191V0, publicKeys, publicNonces)
+      const sSummed = Schnorrkel.sumSigs([sigOne, sigTwo])
+
+      const abiCoder = new ethers.utils.AbiCoder()
+      const sigData = abiCoder.encode(['bytes32', 'bytes32'], [
+        e.buffer,
+        sSummed.buffer
+      ]) + hexPxIndexWithParity
+      const result = await account.isValidSignature(msgKeccak256, sigData)
+      expect(result).to.eql('0x00000000')
     })
 
     it('should revert if setMergedKey not invoke from intrenal', async () => {

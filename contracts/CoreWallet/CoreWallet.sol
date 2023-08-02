@@ -263,23 +263,22 @@ contract CoreWallet is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-        if (msg.data.length > 0) {
-            address delegate = delegates[msg.sig];
-            require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
 
-            // We have found a delegate contract that is responsible for the method signature of
-            // this call. Now, pass along the calldata of this CALL to the delegate contract.
-            assembly {
-                calldatacopy(0, 0, calldatasize())
-                let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
-                returndatacopy(0, 0, returndatasize())
+        address delegate = delegates[msg.sig];
+        require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
 
-                // If the delegate reverts, we revert. If the delegate does not revert, we return the data
-                // returned by the delegate to the original caller.
-                switch result
-                case 0 { revert(0, returndatasize()) }
-                default { return(0, returndatasize()) }
-            }
+        // We have found a delegate contract that is responsible for the method signature of
+        // this call. Now, pass along the calldata of this CALL to the delegate contract.
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+
+            // If the delegate reverts, we revert. If the delegate does not revert, we return the data
+            // returned by the delegate to the original caller.
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
         }
     }
 
@@ -466,7 +465,6 @@ contract CoreWallet is IERC1271 {
         // check if they're zero.
         address R = ecrecover(sp, parity, px, ep);
         require(R != address(0), "ecrecover failed");
-        // return e == keccak256(abi.encodePacked(R, uint8(parity), px, hash)) ? address(uint160(uint256(px))) : address(0);
         return e == keccak256(abi.encodePacked(R, parity, px, hash));
     }
 

@@ -25,7 +25,7 @@ import {
   TWO_ETH
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
-import { hexZeroPad } from '@ethersproject/bytes'
+import { hexZeroPad, Signature } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 import { zeroAddress } from 'ethereumjs-util'
@@ -478,6 +478,21 @@ describe('BloctoAccount CoreWallet Test', function () {
       await fund(cosignerWallet2.address)
     })
 
+    it('should not be able to use invoke0', async () => {
+      // prepare
+      const receiveAccount = createTmpAccount()
+      await testERC20.mint(account.address, TWO_ETH)
+
+      const data = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiveAccount.address, ONE_ETH]))
+
+      const accountLinkAuthorized = BloctoAccount__factory.connect(account.address, authorizedWallet2)
+
+      await expect(
+        accountLinkAuthorized.invoke0(data)
+      ).to.revertedWith('invalid authorization')
+    })
+
     it('should be able to perform transactions with authorized key (send ERC20)', async () => {
       // prepare
       const receiveAccount = createTmpAccount()
@@ -500,9 +515,31 @@ describe('BloctoAccount CoreWallet Test', function () {
         expect(await account.isValidSignature('0x' + '1'.repeat(64), sig)).to.equal('0x00000000')
       })
 
+      it('shoule revert if too big authorized signature', async () => {
+        const sig = '0x' + 'a'.repeat(128) + '00'
+        await expect(
+          account.isValidSignature('0x' + '1'.repeat(64), sig)
+        ).to.revertedWith('s of signature[0] is too large')
+      })
+
+      // two signature
       it('shoule return 0 for wrong authorized with cosigner signature', async () => {
         const sig = '0x' + '2'.repeat(260)
         expect(await account.isValidSignature('0x' + '1'.repeat(64), sig)).to.equal('0x00000000')
+      })
+
+      it('shoule revert if too big authorized signature - 2 signature', async () => {
+        const sig = '0x' + 'a'.repeat(128) + '00' + '1'.repeat(130)
+        await expect(
+          account.isValidSignature('0x' + '1'.repeat(64), sig)
+        ).to.revertedWith('s of signature[0] is too large')
+      })
+
+      it('shoule revert if too big cosigner signature - 2 signature', async () => {
+        const sig = '0x' + '1'.repeat(130) + 'a'.repeat(128) + '00'
+        await expect(
+          account.isValidSignature('0x' + '1'.repeat(64), sig)
+        ).to.revertedWith('s of signature[1] is too large')
       })
 
       it('shoule return 0 for wrong signature length', async () => {
@@ -608,17 +645,27 @@ describe('BloctoAccount CoreWallet Test', function () {
       ).to.revertedWith('must be called from `invoke()`')
     })
 
-    it('should be able to delegate function', async () => {
-      await testERC20.mint(account.address, TWO_ETH)
-
+    it('should not be able to directly call delegate function', async () => {
       const interfaceId = testERC20.interface.encodeFunctionData('senderBalance')
-      await setDelegateByCosigner(account, interfaceId, testERC20.address, authorizedWallet2, cosignerWallet2)
 
-      const accountERC20 = TestERC20__factory.connect(account.address, authorizedWallet2)
-      expect(await accountERC20.senderBalance()).to.equal(TWO_ETH)
+      await expect(
+        account.setDelegate(interfaceId, testERC20.address)
+      ).to.revertedWith('must be called from `invoke()`')
     })
 
-    it('should be able to delegate function 2', async () => {
+    it('should not be able to delegate to COMPOSITE_PLACEHOLDER', async () => {
+      const composite = await account.COMPOSITE_PLACEHOLDER()
+
+      const interfaceId = testERC20.interface.encodeFunctionData('senderBalance')
+      await setDelegateByCosigner(account, interfaceId, composite, authorizedWallet2, cosignerWallet2)
+
+      const accountERC20 = TestERC20__factory.connect(account.address, authorizedWallet2)
+      await expect(
+        accountERC20.senderBalance()
+      ).to.revertedWith('invalid transaction')
+    })
+
+    it('should be able to delegate function with payable', async () => {
       await testERC20.mint(account.address, TWO_ETH)
       await fund(authorizedWallet2.address)
       await fund(authorizedWallet2.address)
@@ -631,6 +678,16 @@ describe('BloctoAccount CoreWallet Test', function () {
       await accountERC20.payableLookBalance({ value: ONE_ETH })
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
+
+    // it('unknown function and data length = 0', async () => {
+    //   await testERC20.mint(account.address, TWO_ETH)
+
+    //   const interfaceId = testERC20.interface.encodeFunctionData('senderBalance')
+    //   await setDelegateByCosigner(account, interfaceId, testERC20.address, authorizedWallet2, cosignerWallet2)
+
+    //   const accountERC20 = TestERC20__factory.connect(account.address, authorizedWallet2)
+    //   expect(await accountERC20.senderBalance()).to.equal(TWO_ETH)
+    // })
   })
 
   describe('init function test', () => {
@@ -755,6 +812,115 @@ describe('BloctoAccount CoreWallet Test', function () {
           [pxIndexWithParity, pxIndexWithParity2],
           [px, px2])
       ).to.revertedWith('do not use the recovery address as an authorized address')
+    })
+  })
+
+  describe('invoke1CosignerSends function', () => {
+    let account: BloctoAccount
+    let newNonce: BigNumber
+    let sign: Signature
+    let anyData: Uint8Array
+    const [authorizedWallet2, , recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+
+    before(async function () {
+      const fakeEntrypoint = createTmpAccount()
+      account = await new BloctoAccount__factory(ethersSigner).deploy(fakeEntrypoint.address)
+
+      newNonce = (await account.nonce()).add(1)
+
+      anyData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
+      sign = await signMessage(authorizedWallet2, account.address, newNonce, anyData)
+    })
+
+    it('should revert if v of signature is invalid', async () => {
+      await expect(
+        account.invoke1CosignerSends(0, sign.r, sign.s, newNonce, authorizedWallet2.address, anyData)
+      ).to.revertedWith('invalid signature version')
+    })
+
+    it('should revert if s of signature is invalid', async () => {
+      await expect(
+        account.invoke1CosignerSends(sign.v, sign.r, '0x' + '8'.repeat(64), newNonce, authorizedWallet2.address, anyData)
+      ).to.revertedWith('s of signature is too large')
+    })
+
+    it('should revert if signature is invalid', async () => {
+      const fake32bytes = '0x' + '1'.repeat(64)
+      await expect(
+        account.invoke1CosignerSends(sign.v, fake32bytes, fake32bytes, newNonce, authorizedWallet2.address, anyData)
+      ).to.revertedWith('invalid signature')
+    })
+
+    it('should revert if nonce is invalid', async () => {
+      await expect(
+        account.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce.add(11), authorizedWallet2.address, anyData)
+      ).to.revertedWith('must use valid nonce for signer')
+    })
+
+    it('should revert if not authorized addresses must be equal', async () => {
+      const anyAccount = createTmpAccount()
+      const sign = await signMessage(anyAccount, account.address, newNonce, anyData)
+      await expect(
+        account.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet2.address, anyData)
+      ).to.revertedWith('authorized addresses must be equal')
+    })
+  })
+
+  describe('invoke1SignerSends function', () => {
+    let account: BloctoAccount
+    // let accountLinkAuthorized: BloctoAccount
+    let authorizeInAccountNonce: BigNumber
+    let sign: Signature
+    let anyData: Uint8Array
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+
+    before(async function () {
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+      account = await createAccount(
+        ethersSigner,
+        await authorizedWallet2.getAddress(),
+        await cosignerWallet2.getAddress(),
+        await recoverWallet2.getAddress(),
+        BigNumber.from(850),
+        pxIndexWithParity2,
+        px2,
+        factory
+      )
+      // accountLinkAuthorized = BloctoAccount__factory.connect(account.address, authorizedWallet2)
+      anyData = txData(1, account.address, BigNumber.from(0),
+        account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
+
+      authorizeInAccountNonce = (await account.nonce())
+
+      sign = await signMessage(cosignerWallet2, account.address, authorizeInAccountNonce, anyData, authorizedWallet2.address)
+    })
+
+    it('should revert if v of signature is invalid', async () => {
+      await expect(
+        account.invoke1SignerSends(0, sign.r, sign.s, anyData)
+      ).to.revertedWith('invalid signature version')
+    })
+
+    it('should revert if s of signature is invalid', async () => {
+      await expect(
+        account.invoke1SignerSends(sign.v, sign.r, '0x' + '8'.repeat(64), anyData)
+      ).to.revertedWith('s of signature is too large')
+    })
+
+    it('should revert if signature is invalid', async () => {
+      const fake32bytes = '0x' + '1'.repeat(64)
+      await expect(
+        account.invoke1SignerSends(sign.v, fake32bytes, fake32bytes, anyData)
+      ).to.revertedWith('invalid signature')
+    })
+
+    it('should revert if not authorized addresses must be equal', async () => {
+      const anyAccount = createTmpAccount()
+      const sign = await signMessage(anyAccount, account.address, authorizeInAccountNonce, anyData, authorizedWallet2.address)
+      await expect(
+        account.invoke1SignerSends(sign.v, sign.r, sign.s, anyData)
+      ).to.revertedWith('invalid authorization')
     })
   })
 })
