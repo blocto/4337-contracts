@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Wallet, BigNumber, BaseContract } from 'ethers'
+import { Wallet, BigNumber } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccount,
@@ -11,6 +11,7 @@ import {
   CREATE3Factory,
   TestBloctoAccountCloneableWalletV200,
   TestBloctoAccountCloneableWalletV200__factory,
+  TestERC20,
   TestERC20__factory,
   BloctoAccountFactory__factory,
   BloctoAccountFactory
@@ -29,21 +30,16 @@ import {
   signMessage,
   getMergedKey,
   signMessageWithoutChainId,
-  rethrow
+  rethrow,
+  FIVE_ETH
 
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
-import { mine } from '@nomicfoundation/hardhat-network-helpers'
-
-import { fillUserOpDefaults, getUserOpHash, packUserOp, signUserOp, fillAndSignWithCoSigner, fillSignWithEIP191V0 } from './entrypoint/UserOp'
-import { UserOperation } from './entrypoint/UserOperation'
-
-import { hexConcat } from 'ethers/lib/utils'
+import { fillSignWithEIP191V0 } from './entrypoint/UserOp'
 import { zeroAddress } from 'ethereumjs-util'
-import { create } from 'domain'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -59,7 +55,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
   let create3Factory: CREATE3Factory
 
-  let testERC20: TestERC20__factory
+  let testERC20: TestERC20
 
   const NowVersion = '1.4.0'
   const NextVersion = '1.5.0'
@@ -161,6 +157,17 @@ describe('BloctoAccount Upgrade Test', function () {
     expect(await accountV140.VERSION()).to.eql(NowVersion)
   })
 
+  it('should not deploy again with create3', async () => {
+    const accountSalt = hexZeroPad(Buffer.from('BloctoAccount_v140', 'utf-8'), 32)
+
+    await expect(
+      create3Factory.deploy(
+        accountSalt,
+        getDeployCode(new BloctoAccountCloneableWalletV140__factory(), [entryPoint.address])
+      )
+    ).to.be.revertedWith('DEPLOYMENT_FAILED')
+  })
+
   it('should delpoy new cloneable wallet and upgrade factory ', async () => {
     // deploy BloctoAccount next version
     const accountSalt = hexZeroPad(Buffer.from('BloctoAccount_next_version', 'utf-8'), 32)
@@ -190,6 +197,39 @@ describe('BloctoAccount Upgrade Test', function () {
   describe('wallet functions', () => {
     const AccountSalt = 123
 
+    it('should not init account again', async () => {
+      const account = await testCreateAccount(201)
+      const tmpAccount = createTmpAccount()
+      const link = await BloctoAccount__factory.connect(account.address, tmpAccount)
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      await expect(link.init(fakeAddr, fakeAddr, fakeAddr, 1, '0x' + 'a'.repeat(64))).to.revertedWith('must not already be initialized')
+    })
+
+    it('should not init2 account again', async () => {
+      const account = await testCreateAccount(209)
+      const tmpAccount = createTmpAccount()
+      const link = await BloctoAccount__factory.connect(account.address, tmpAccount)
+      const fakeAddr = '0x' + 'a'.repeat(40)
+      const tmpbytes32 = '0x' + 'a'.repeat(64)
+      await expect(link.init2(
+        [fakeAddr, fakeAddr],
+        fakeAddr, fakeAddr,
+        [1, 1],
+        [tmpbytes32, tmpbytes32])).to.revertedWith('must not already be initialized')
+    })
+
+    it('should not initImplementation again', async () => {
+      const account = await testCreateAccount(222)
+      const tmpAccount = createTmpAccount()
+      const link = await BloctoAccount__factory.connect(account.address, tmpAccount)
+      await expect(link.initImplementation('0x' + 'a'.repeat(40))).to.revertedWith('must not already be initialized')
+    })
+
+    it('should initImplementation with a contract', async () => {
+      const b = await new BloctoAccount__factory(ethersSigner).deploy(entryPoint.address)
+      await expect(b.initImplementation('0x' + 'a'.repeat(40))).to.revertedWith('ERC1967: new implementation is not a contract')
+    })
+
     it('should receive native token', async () => {
       const account = await testCreateAccount(AccountSalt)
       const beforeRecevive = await ethers.provider.getBalance(account.address)
@@ -203,6 +243,16 @@ describe('BloctoAccount Upgrade Test', function () {
       const receivedSelector = ethers.utils.id('Received(address,uint256)')
       expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should receive 0 native token', async () => {
+      const account = await testCreateAccount(249)
+      const [owner] = await ethers.getSigners()
+
+      await owner.sendTransaction({
+        to: account.address,
+        value: 0 // Sends exactly 0.0 ether
+      })
     })
 
     it('should send ERC20 token', async () => {
@@ -221,6 +271,24 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should revert if invalid data length', async () => {
+      // prepare
+      const account = await testCreateAccount(276)
+      await testERC20.mint(account.address, TWO_ETH)
+      const receiveAccount = await testCreateAccount(277)
+      const authorizeInAccountNonce = (await account.nonce()).add(1)
+      const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
+      const data = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiveAccount.address, ONE_ETH]))
+
+      const newData = data.slice(0, 70)
+      const sign = await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, newData)
+
+      await expect(
+        accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, newData)
+      ).to.revertedWith('data field too short')
+    })
+
     it('should create account with multiple authorized address', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
@@ -235,7 +303,7 @@ describe('BloctoAccount Upgrade Test', function () {
         [px, px2])
 
       const receipt = await tx.wait()
-      console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
+      // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
@@ -347,6 +415,47 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await testERC20.balanceOf(receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should revert execute transfer ERC20 from entrypoint with error signature', async () => {
+      const [authorizedWallet2, cosignerWallet2] = createAuthorizedCosignerRecoverWallet()
+      const receiver = createTmpAccount()
+      const beneficiaryAddress = createTmpAccount().address
+      await testERC20.mint(account.address, TWO_ETH)
+      const erc20Transfer = await testERC20.populateTransaction.transfer(receiver.address, ONE_ETH)
+      const accountExecFromEntryPoint = await account.populateTransaction.execute(testERC20.address, 0, erc20Transfer.data!)
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account.address,
+        callGasLimit: 2e6,
+        verificationGasLimit: 1e5
+      }, authorizedWallet2, cosignerWallet2, entryPoint, account.address)
+
+      // start test
+      await expect(entryPoint.handleOps([op1], beneficiaryAddress)).to.be.reverted
+    })
+
+    it('should execute approve ERC20 from entrypoint', async () => {
+      const approveAddr = createTmpAccount()
+      const beneficiaryAddress = createTmpAccount().address
+      const erc20 = await testERC20.populateTransaction.approve(approveAddr.address, FIVE_ETH)
+      const accountExecFromEntryPoint = await account.populateTransaction.execute(testERC20.address, 0, erc20.data!)
+
+      const op1 = await fillSignWithEIP191V0({
+        callData: accountExecFromEntryPoint.data,
+        sender: account.address,
+        callGasLimit: 2e6,
+        verificationGasLimit: 1e5
+      }, authorizedWallet, cosignerWallet, entryPoint, account.address)
+
+      // start test
+      // test send ERC20
+      expect(await testERC20.allowance(account.address, approveAddr.address)).to.equal(0)
+
+      await entryPoint.handleOps([op1], beneficiaryAddress).catch((rethrow())).then(async r => r!.wait())
+
+      expect(await testERC20.allowance(account.address, approveAddr.address)).to.equal(FIVE_ETH)
+    })
+
     it('should revert execute transfer ERC20 from entrypoint', async () => {
       const account2 = await testCreateAccount(433702, 0, factory)
       const beneficiaryAddress = createTmpAccount().address
@@ -423,6 +532,12 @@ describe('BloctoAccount Upgrade Test', function () {
       await entryPoint.handleOps([op1], depositor.address).catch((rethrow())).then(async r => r!.wait())
       expect(await ethers.provider.getBalance(beneficiary.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
+
+    it('should revert withdraw deposit if call from other address', async () => {
+      const tmpAccount = createTmpAccount()
+      const accountLink = await BloctoAccount__factory.connect(account.address, tmpAccount)
+      await expect(accountLink.withdrawDepositTo(tmpAccount.address, ONE_ETH)).to.revertedWith('must be called from `invoke()`')
+    })
   })
 
   // for Blocto Account Factory
@@ -439,6 +554,75 @@ describe('BloctoAccount Upgrade Test', function () {
 
       const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
       expect(beforeAccountAddr).to.eql(afterAccountAddr)
+    })
+  })
+
+  // for Blocto Account Factory
+  describe('factory functions', () => {
+    let factory: BloctoAccountFactory
+
+    before(async () => {
+      factory = await new BloctoAccountFactory__factory(ethersSigner).deploy()
+    })
+
+    it('should implementation not be zero address', async () => {
+      await expect(factory.initialize(zeroAddress(), entryPoint.address, await ethersSigner.getAddress())).to.revertedWith('Invalid implementation address.')
+    })
+
+    it('should init factory', async () => {
+      await factory.initialize(implementation, entryPoint.address, await ethersSigner.getAddress())
+    })
+
+    it('should not initiate again', async () => {
+      const tmpAccount = createTmpAccount()
+      const factoryLink = await BloctoAccountFactory__factory.connect(factory.address, tmpAccount)
+      await expect(factoryLink.initialize('0x' + 'a'.repeat(40), '0x' + 'b'.repeat(40), '0x' + 'c'.repeat(40))).to.revertedWith('Initializable: contract is already initialized')
+    })
+
+    it('should revert if sender is not grant role for createAccount', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      await expect(
+        createAccount(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(6346346),
+          pxIndexWithParity,
+          px,
+          factory
+        )
+      ).to.revertedWith('caller is not a create account role')
+    })
+
+    it('should revert if sender is not grant role for createAccount2', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const authorizedWallet22 = createTmpAccount()
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        factory.createAccount2([authorizedWallet2.address, authorizedWallet22.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          510, // random salt
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('caller is not a create account role')
+    })
+
+    it('should revert if sender is not grant role for setImplementation', async () => {
+      const tmpAccount = createTmpAccount()
+      const factoryLink = await BloctoAccountFactory__factory.connect(factory.address, tmpAccount)
+      await expect(
+        factoryLink.setImplementation('0x' + 'a'.repeat(40))
+      ).to.revertedWith('caller is not a create account role')
+    })
+
+    it('should revert if setImplementation with zero address', async () => {
+      await expect(
+        factory.setImplementation(zeroAddress())
+      ).to.revertedWith('Invalid implementation address.')
     })
   })
 
@@ -471,6 +655,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
   describe('EOA entrypoint for _call fail test', () => {
     let account: BloctoAccount
+    let accountLinkEntrypoint: BloctoAccount
     let factory: BloctoAccountFactory
     const entrypointEOA = createTmpAccount()
 
@@ -504,12 +689,36 @@ describe('BloctoAccount Upgrade Test', function () {
         px,
         factory
       )
+
+      accountLinkEntrypoint = await BloctoAccount__factory.connect(account.address, entrypointEOA)
     })
 
     it('should revert for execute non exist function', async () => {
-      const accountLinkEntrypoint = await BloctoAccount__factory.connect(account.address, entrypointEOA)
+      // const accountLinkEntrypoint = await BloctoAccount__factory.connect(account.address, entrypointEOA)
       await expect(accountLinkEntrypoint.execute(testERC20.address, 0, '0xf2fde38a'))
         .to.be.reverted
+    })
+
+    it('should revert for execute batch with wrong array length', async () => {
+      const receiver1 = await createTmpAccount()
+      const receiver2 = await createTmpAccount()
+      const erc20Transfer1 = await testERC20.populateTransaction.transfer(receiver1.address, ONE_ETH)
+      const erc20Transfer2 = await testERC20.populateTransaction.transfer(receiver2.address, ONE_ETH)
+      await expect(
+        accountLinkEntrypoint.executeBatch(
+          [testERC20.address],
+          [0, 0], [erc20Transfer1.data!, erc20Transfer2.data!])
+      ).to.be.revertedWith('wrong array lengths')
+    })
+
+    it('should revert for execute batch with wrong array length 2', async () => {
+      const receiver1 = await createTmpAccount()
+      const erc20Transfer1 = await testERC20.populateTransaction.transfer(receiver1.address, ONE_ETH)
+      await expect(
+        accountLinkEntrypoint.executeBatch(
+          [testERC20.address, testERC20.address],
+          [0, 0], [erc20Transfer1.data!])
+      ).to.be.revertedWith('wrong array lengths')
     })
   })
 })
