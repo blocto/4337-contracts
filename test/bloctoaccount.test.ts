@@ -103,7 +103,15 @@ describe('BloctoAccount Upgrade Test', function () {
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
   async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<void> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
-    const authorizeInAccountNonce = (await account.nonce()).add(1)
+    let authorizeInAccountNonce: BigNumber
+    if (withChainId) {
+      account = account as BloctoAccount
+      authorizeInAccountNonce = (await account.nonce()).add(1)
+    } else {
+      const accountV140 = await BloctoAccountV140__factory.connect(account.address, cosignerWallet)
+      authorizeInAccountNonce = (await accountV140.nonces(authorizedWallet.address)).add(1)
+    }
+
     const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
     const data = txData(1, testERC20.address, BigNumber.from(0),
       testERC20.interface.encodeFunctionData('transfer', [to, amount]))
@@ -150,11 +158,41 @@ describe('BloctoAccount Upgrade Test', function () {
   // upgrade from v140
   let accountV140: BloctoAccountV140
   let account: BloctoAccount
-  it('creat previous version account', async () => {
+  it('create previous version account', async () => {
     expect(await factory.VERSION()).to.eql(NowVersion)
 
     accountV140 = await testCreateAccount(140) as unknown as BloctoAccountV140
     expect(await accountV140.VERSION()).to.eql(NowVersion)
+  })
+
+  it('should send ERC20 token in accountV140', async () => {
+    // prepare
+    const receiveAccount = await testCreateAccount(236)
+    await testERC20.mint(accountV140.address, TWO_ETH)
+
+    // test send ERC20
+    const before = await testERC20.balanceOf(accountV140.address)
+    const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
+
+    await sendERC20(accountV140 as unknown as BloctoAccount, receiveAccount.address, ONE_ETH, false)
+
+    expect(await testERC20.balanceOf(accountV140.address)).to.equal(before.sub(ONE_ETH))
+    expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+  })
+
+  it('should storage slot 3 is 0', async () => {
+    // storage slot 3 data (v150 nonce location)
+    const slot3Data = await ethers.provider.getStorageAt(accountV140.address, 3)
+    // next version(v150) should be 0
+    expect(slot3Data).to.equal(BigNumber.from(0))
+
+    // storage slot 3 map data (v140 nonces location)
+    const slot3MapHash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(['address', 'uint'], [authorizedWallet.address, 3])
+    )
+    const slot3MapData = await ethers.provider.getStorageAt(accountV140.address, slot3MapHash)
+    // because we send tx one time (sendERC20), so nonce is 1
+    expect(slot3MapData).to.equal(BigNumber.from(1))
   })
 
   it('should not deploy again with create3', async () => {
@@ -245,6 +283,20 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should receive native token in upgrade account', async () => {
+      const beforeRecevive = await ethers.provider.getBalance(account.address)
+      const [owner] = await ethers.getSigners()
+
+      const tx = await owner.sendTransaction({
+        to: account.address,
+        value: ONE_ETH // Sends exactly 1.0 ether
+      })
+      const receipt = await tx.wait()
+      const receivedSelector = ethers.utils.id('Received(address,uint256)')
+      expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
+      expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
     it('should receive 0 native token', async () => {
       const account = await testCreateAccount(249)
       const [owner] = await ethers.getSigners()
@@ -268,6 +320,20 @@ describe('BloctoAccount Upgrade Test', function () {
       await sendERC20(sendAccount, receiveAccount.address, ONE_ETH)
 
       expect(await testERC20.balanceOf(sendAccount.address)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should send ERC20 token in upgrade account', async () => {
+      // prepare
+      const receiveAccount = await testCreateAccount(279)
+      await testERC20.mint(account.address, TWO_ETH)
+      // test send ERC20
+      const before = await testERC20.balanceOf(account.address)
+      const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
+      await sendERC20(account, receiveAccount.address, ONE_ETH)
+
+      expect(await account.VERSION()).to.equal(NextVersion)
+      expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
       expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
