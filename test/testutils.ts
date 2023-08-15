@@ -123,11 +123,6 @@ export function getAccountInitCode2 (factory: BloctoAccountFactory, authorizedAd
   ])
 }
 
-// given the parameters as AccountDeployer, return the resulting "counterfactual address" that it would create.
-export async function getAccountAddress (factory: BloctoAccountFactory, cosignerAddress: string, recoveryAddress: string, salt = 0): Promise<string> {
-  return await factory.getAddress(cosignerAddress, recoveryAddress, BigNumber.from(salt))
-}
-
 const panicCodes: { [key: number]: string } = {
   // from https://docs.soliditylang.org/en/v0.8.0/control-structures.html
   0x01: 'assert(false)',
@@ -273,6 +268,33 @@ export async function createAccount (
   accountFactory: BloctoAccountFactory
 ): Promise<BloctoAccount> {
   const tx = await accountFactory.createAccount(authorizedAddresses, cosignerAddresses, recoverAddresses, salt, mergedKeyIndexWithParity, mergedKey)
+  // console.log('tx: ', tx)
+  const receipt = await tx.wait()
+  if (ShowCreateAccountGas) {
+    console.log('createAccount gasUsed: ', receipt.gasUsed)
+  }
+
+  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
+  const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
+  return account
+}
+
+// Deploys an implementation and a proxy pointing to this implementation
+export async function createAccountV151 (
+  ethersSigner: Signer,
+  authorizedAddresses: string,
+  cosignerAddresses: string,
+  recoverAddresses: string,
+  salt: BigNumber,
+  mergedKeyIndexWithParity: number,
+  mergedKey: string,
+  accountFactory: BloctoAccountFactory
+): Promise<BloctoAccount> {
+  const newSalt = keccak256(concat([
+    ethers.utils.hexZeroPad(salt.toHexString(), 32),
+    cosignerAddresses, recoverAddresses
+  ]))
+  const tx = await accountFactory.createAccount_1_5_1(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
   // console.log('tx: ', tx)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {
