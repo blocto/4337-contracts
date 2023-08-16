@@ -39,6 +39,18 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
+    /// @notice only the admin can update admin functioins
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+        _;
+    }
+
+    /// @notice only the create account role can call create accout functions
+    modifier onlyCreateAccountRole() {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+        _;
+    }
+
     /// @notice create an account, and return its BloctoAccount.
     /// @param _authorizedAddress the initial authorized address, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
@@ -53,8 +65,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
@@ -82,8 +93,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
@@ -113,16 +123,14 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
 
     /// @notice set the implementation
     /// @param _bloctoAccountImplementation update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
-    function setImplementation(address _bloctoAccountImplementation) public {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+    function setImplementation(address _bloctoAccountImplementation) external onlyAdmin {
         require(_bloctoAccountImplementation != address(0), "invalid implementation address.");
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
     /// @notice set the implementation for bloctoAccountImplementation151Plus
     /// @param _bloctoAccountImplementation151Plus update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
-    function setImplementation_1_5_1(address _bloctoAccountImplementation151Plus) public {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+    function setImplementation_1_5_1(address _bloctoAccountImplementation151Plus) external onlyAdmin {
         require(_bloctoAccountImplementation151Plus != address(0), "invalid implementation address.");
         bloctoAccountImplementation151Plus = _bloctoAccountImplementation151Plus;
     }
@@ -141,8 +149,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         bytes32 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
@@ -167,8 +174,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         bytes32 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
