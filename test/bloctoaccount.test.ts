@@ -406,7 +406,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
       const tx = await factory.createAccount_1_5_1(authorizedWallet2.address,
         cosignerWallet2.address, recoverWallet2.address,
-        754264557, // random salt
+        ethers.utils.hexZeroPad('0x409', 32), // random salt
         pxIndexWithParity,
         px)
 
@@ -535,7 +535,7 @@ describe('BloctoAccount Upgrade Test', function () {
     })
 
     it('new account get new version', async () => {
-      const randomSalt = 54326346
+      const randomSalt = 538
       const accountNew = await testCreateAccount(randomSalt)
 
       expect(await accountNew.VERSION()).to.eql('2.0.0')
@@ -814,7 +814,7 @@ describe('BloctoAccount Upgrade Test', function () {
       await expect(
         factory.createAccount2_1_5_1([authorizedWallet2.address, authorizedWallet22.address],
           cosignerWallet2.address, recoverWallet2.address,
-          510, // random salt
+          ethers.utils.hexZeroPad('0x817', 32),
           [pxIndexWithParity, pxIndexWithParity2],
           [px, px2])
       ).to.revertedWith('caller is not a create account role')

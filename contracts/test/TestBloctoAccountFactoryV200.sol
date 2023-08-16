@@ -145,16 +145,14 @@ contract TestBloctoAccountFactoryV200 is Initializable, AccessControlUpgradeable
         address _authorizedAddress,
         address _cosigner,
         address _recoveryAddress,
-        uint256 _salt,
+        bytes32 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public returns (BloctoAccount ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         // to be consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: bytes32(_salt)}(initImplementation);
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
-        // to save gas, first deploy using disableInitImplementation()
-        // to be consistent address, (after) first upgrade need to call initImplementation
         ret.initImplementation(bloctoAccountImplementation151Plus);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
@@ -173,17 +171,14 @@ contract TestBloctoAccountFactoryV200 is Initializable, AccessControlUpgradeable
         address[] calldata _authorizedAddresses,
         address _cosigner,
         address _recoveryAddress,
-        uint256 _salt,
+        bytes32 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public returns (BloctoAccount ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         // to be consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: bytes32(_salt)}(initImplementation);
-
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
-        // to save gas, first deploy use disableInitImplementation()
-        // to be consistent address, (after) first upgrade need to call initImplementation()
         ret.initImplementation(bloctoAccountImplementation151Plus);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys

@@ -298,7 +298,7 @@ export async function createAccountV151 (
   // console.log('tx: ', tx)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {
-    console.log('createAccount gasUsed: ', receipt.gasUsed)
+    console.log('createAccount 151 gasUsed: ', receipt.gasUsed)
   }
 
   const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)

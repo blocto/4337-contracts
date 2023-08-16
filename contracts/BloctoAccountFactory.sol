@@ -138,13 +138,13 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         address _authorizedAddress,
         address _cosigner,
         address _recoveryAddress,
-        uint256 _salt,
+        bytes32 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public returns (BloctoAccount ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         // to be consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: bytes32(_salt)}(initImplementation);
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
         ret.initImplementation(bloctoAccountImplementation151Plus);
         ret.init(
@@ -164,13 +164,13 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         address[] calldata _authorizedAddresses,
         address _cosigner,
         address _recoveryAddress,
-        uint256 _salt,
+        bytes32 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public returns (BloctoAccount ret) {
         require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
         // to be consistent address
-        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: bytes32(_salt)}(initImplementation);
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
         ret = BloctoAccount(payable(address(newProxy)));
         ret.initImplementation(bloctoAccountImplementation151Plus);
         ret.init2(
