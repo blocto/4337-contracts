@@ -31,6 +31,11 @@ Deploy
 yarn deploy-verifyingPaymaster --network ethereum
 ```
 
+Upgrade
+```
+yarn deploy-upgrade --network ethereum
+```
+
 ## Tool
 
 check storage layout
