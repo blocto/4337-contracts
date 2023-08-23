@@ -5,6 +5,7 @@ import '@nomiclabs/hardhat-etherscan'
 import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-storage-layout'
 import 'solidity-coverage'
+import 'hardhat-contract-sizer'
 
 const {
   ETHEREUM_URL,

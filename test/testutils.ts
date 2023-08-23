@@ -385,6 +385,21 @@ export async function signMessageWithoutChainId (signerWallet: Wallet, accountAd
   return sign
 }
 
+export async function signForInovke2 (accountAddr: string, nonce: BigNumber, data: Uint8Array, signer: Wallet, cosigner: Wallet): Promise<string> {
+  const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
+
+  const dataForHash = concat([
+    nonceBytesLike,
+    data
+  ])
+  const hash191V0 = hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddr, dataForHash)
+  const signerSignature = sign2Str(signer, hash191V0)
+  const cosignerSignature = sign2Str(cosigner, hash191V0)
+
+  const signature = signerSignature + cosignerSignature.slice(2)
+  return signature
+}
+
 export function logBytes (uint8: Uint8Array): string {
   return Buffer.from(uint8).toString('hex') + '(' + uint8.length.toString() + ')'
 }

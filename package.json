@@ -40,6 +40,7 @@
     "ethers": "^5.4.2",
     "ethjs-util": "^0.1.6",
     "hardhat": "^2.6.6",
+    "hardhat-contract-sizer": "^2.10.0",
     "hardhat-storage-layout": "^0.1.7",
     "solhint": "^3.3.7",
     "ts-generator": "^0.1.1",

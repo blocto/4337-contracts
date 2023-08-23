@@ -8,7 +8,7 @@ import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-const NextVersion = '1.5.1'
+const NextVersion = '1.5.2'
 // entrypoint from 4337 official (0.6.0)
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'

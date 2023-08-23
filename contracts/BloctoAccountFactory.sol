@@ -11,7 +11,7 @@ import "./BloctoAccount.sol";
 // BloctoAccountFactory for creating BloctoAccountProxy
 contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
-    string public constant VERSION = "1.5.1";
+    string public constant VERSION = "1.5.2";
     /// @notice create account role for using createAccount() and createAccount2()
     bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
