@@ -11,7 +11,7 @@ import "./BloctoAccount.sol";
 // BloctoAccountFactory for creating BloctoAccountProxy
 contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
-    string public constant VERSION = "1.5.0";
+    string public constant VERSION = "1.5.1";
     /// @notice create account role for using createAccount() and createAccount2()
     bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     /// @notice the init implementation address of BloctoAccountCloneableWallet, never change for cosistent address
@@ -20,6 +20,8 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     address public bloctoAccountImplementation;
     /// @notice the address from EIP-4337 official implementation
     IEntryPoint public entryPoint;
+    /// @notice the implementation address of BloctoAccountCloneableWallet
+    address public bloctoAccountImplementation151Plus;
 
     event WalletCreated(address wallet, address authorizedAddress, bool full);
 
@@ -37,6 +39,18 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
     }
 
+    /// @notice only the admin can update admin functioins
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
+        _;
+    }
+
+    /// @notice only the create account role can call create accout functions
+    modifier onlyCreateAccountRole() {
+        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+        _;
+    }
+
     /// @notice create an account, and return its BloctoAccount.
     /// @param _authorizedAddress the initial authorized address, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
@@ -51,8 +65,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
@@ -80,8 +93,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         uint256 _salt,
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
-    ) public returns (BloctoAccount ret) {
-        require(hasRole(CREATE_ACCOUNT_ROLE, msg.sender), "caller is not a create account role");
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
         bytes32 salt = keccak256(abi.encodePacked(_salt, _cosigner, _recoveryAddress));
         // to be consistent address
         BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: salt}(initImplementation);
@@ -111,12 +123,66 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
 
     /// @notice set the implementation
     /// @param _bloctoAccountImplementation update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
-    function setImplementation(address _bloctoAccountImplementation) public {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "caller is not a admin");
-        require(_bloctoAccountImplementation != address(0), "Invalid implementation address.");
+    function setImplementation(address _bloctoAccountImplementation) external onlyAdmin {
+        require(_bloctoAccountImplementation != address(0), "invalid implementation address.");
         bloctoAccountImplementation = _bloctoAccountImplementation;
     }
 
-    /// @dev This empty reserved space for future versions. refer from: https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-    uint256[50] private __gap;
+    /// @notice set the implementation for bloctoAccountImplementation151Plus
+    /// @param _bloctoAccountImplementation151Plus update the implementation address of BloctoAccountCloneableWallet for createAccount and createAccount2
+    function setImplementation_1_5_1(address _bloctoAccountImplementation151Plus) external onlyAdmin {
+        require(_bloctoAccountImplementation151Plus != address(0), "invalid implementation address.");
+        bloctoAccountImplementation151Plus = _bloctoAccountImplementation151Plus;
+    }
+
+    /// @notice create an account, and return its BloctoAccount. note: diretly use _salt to create account
+    /// @param _authorizedAddress the initial authorized address, must not be zero!
+    /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
+    /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _salt salt for create account (used for address calculation in create2)
+    /// @param _mergedKeyIndexWithParity the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKey the corresponding mergedKey (using Schnorr merged key)
+    function createAccount_1_5_1(
+        address _authorizedAddress,
+        address _cosigner,
+        address _recoveryAddress,
+        bytes32 _salt,
+        uint8 _mergedKeyIndexWithParity,
+        bytes32 _mergedKey
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
+        // to be consistent address
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
+        ret = BloctoAccount(payable(address(newProxy)));
+        ret.initImplementation(bloctoAccountImplementation151Plus);
+        ret.init(
+            _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
+        );
+        emit WalletCreated(address(ret), _authorizedAddress, false);
+    }
+
+    /// @notice create an account with multiple authorized addresses, and return its BloctoAccount. note: diretly use _salt to create account
+    /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
+    /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
+    /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _salt salt for create account (used for address calculation in create2)
+    /// @param _mergedKeyIndexWithParitys the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKeys the corresponding mergedKey
+    function createAccount2_1_5_1(
+        address[] calldata _authorizedAddresses,
+        address _cosigner,
+        address _recoveryAddress,
+        bytes32 _salt,
+        uint8[] calldata _mergedKeyIndexWithParitys,
+        bytes32[] calldata _mergedKeys
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
+        // to be consistent address
+        BloctoAccountProxy newProxy = new BloctoAccountProxy{salt: _salt}(initImplementation);
+        ret = BloctoAccount(payable(address(newProxy)));
+        ret.initImplementation(bloctoAccountImplementation151Plus);
+        ret.init2(
+            _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
+        );
+        // emit event only with _authorizedAddresses[0]
+        emit WalletCreated(address(ret), _authorizedAddresses[0], true);
+    }
 }

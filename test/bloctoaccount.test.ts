@@ -22,6 +22,7 @@ import {
   fund,
   createTmpAccount,
   createAccount,
+  createAccountV151,
   deployEntryPoint,
   ONE_ETH,
   TWO_ETH,
@@ -39,7 +40,7 @@ import { hexZeroPad } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 import { fillSignWithEIP191V0 } from './entrypoint/UserOp'
-import { zeroAddress } from 'ethereumjs-util'
+import { keccak256, zeroAddress } from 'ethereumjs-util'
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -58,21 +59,39 @@ describe('BloctoAccount Upgrade Test', function () {
   let testERC20: TestERC20
 
   const NowVersion = '1.4.0'
-  const NextVersion = '1.5.0'
+  const NextVersion = '1.5.1'
 
-  async function testCreateAccount (salt = 0, mergedKeyIndex = 0, ifactory = factory): Promise<BloctoAccount> {
+  async function testCreateAccount (salt = 0, mergedKeyIndex = 0, ifactory = factory, version = NextVersion): Promise<BloctoAccount> {
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
 
-    const account = await createAccount(
-      ethersSigner,
-      await authorizedWallet.getAddress(),
-      await cosignerWallet.getAddress(),
-      await recoverWallet.getAddress(),
-      BigNumber.from(salt),
-      pxIndexWithParity,
-      px,
-      ifactory
-    )
+    let account = null
+    switch (version) {
+      case '1.4.0':
+        account = await createAccount(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(salt),
+          pxIndexWithParity,
+          px,
+          ifactory
+        )
+        break
+      case '1.5.1':
+      default:
+        account = await createAccountV151(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(salt),
+          pxIndexWithParity,
+          px,
+          ifactory
+        )
+        break
+    }
     await fund(account)
 
     return account
@@ -103,7 +122,15 @@ describe('BloctoAccount Upgrade Test', function () {
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
   async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<void> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
-    const authorizeInAccountNonce = (await account.nonce()).add(1)
+    let authorizeInAccountNonce: BigNumber
+    if (withChainId) {
+      account = account as BloctoAccount
+      authorizeInAccountNonce = (await account.nonce()).add(1)
+    } else {
+      const accountV140 = await BloctoAccountV140__factory.connect(account.address, cosignerWallet)
+      authorizeInAccountNonce = (await accountV140.nonces(authorizedWallet.address)).add(1)
+    }
+
     const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
     const data = txData(1, testERC20.address, BigNumber.from(0),
       testERC20.interface.encodeFunctionData('transfer', [to, amount]))
@@ -150,11 +177,41 @@ describe('BloctoAccount Upgrade Test', function () {
   // upgrade from v140
   let accountV140: BloctoAccountV140
   let account: BloctoAccount
-  it('creat previous version account', async () => {
+  it('create previous version account', async () => {
     expect(await factory.VERSION()).to.eql(NowVersion)
 
-    accountV140 = await testCreateAccount(140) as unknown as BloctoAccountV140
+    accountV140 = await testCreateAccount(140, 0, factory, '1.4.0') as unknown as BloctoAccountV140
     expect(await accountV140.VERSION()).to.eql(NowVersion)
+  })
+
+  it('should send ERC20 token in accountV140', async () => {
+    // prepare
+    const receiveAccount = await testCreateAccount(236, 0, factory, '1.4.0')
+    await testERC20.mint(accountV140.address, TWO_ETH)
+
+    // test send ERC20
+    const before = await testERC20.balanceOf(accountV140.address)
+    const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
+
+    await sendERC20(accountV140 as unknown as BloctoAccount, receiveAccount.address, ONE_ETH, false)
+
+    expect(await testERC20.balanceOf(accountV140.address)).to.equal(before.sub(ONE_ETH))
+    expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+  })
+
+  it('should storage slot 3 is 0', async () => {
+    // storage slot 3 data (v150 nonce location)
+    const slot3Data = await ethers.provider.getStorageAt(accountV140.address, 3)
+    // next version(v150) should be 0
+    expect(slot3Data).to.equal(BigNumber.from(0))
+
+    // storage slot 3 map data (v140 nonces location)
+    const slot3MapHash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(['address', 'uint'], [authorizedWallet.address, 3])
+    )
+    const slot3MapData = await ethers.provider.getStorageAt(accountV140.address, slot3MapHash)
+    // because we send tx one time (sendERC20), so nonce is 1
+    expect(slot3MapData).to.equal(BigNumber.from(1))
   })
 
   it('should not deploy again with create3', async () => {
@@ -184,7 +241,7 @@ describe('BloctoAccount Upgrade Test', function () {
     // deploy BloctoAccountFactory next version
     const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
     factory = await upgrades.upgradeProxy(factory.address, UpgradeContract)
-    await factory.setImplementation(implementation)
+    await factory.setImplementation_1_5_1(implementation)
     expect(await factory.VERSION()).to.eql(NextVersion)
   })
 
@@ -245,6 +302,20 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
+    it('should receive native token in upgrade account', async () => {
+      const beforeRecevive = await ethers.provider.getBalance(account.address)
+      const [owner] = await ethers.getSigners()
+
+      const tx = await owner.sendTransaction({
+        to: account.address,
+        value: ONE_ETH // Sends exactly 1.0 ether
+      })
+      const receipt = await tx.wait()
+      const receivedSelector = ethers.utils.id('Received(address,uint256)')
+      expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
+      expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
     it('should receive 0 native token', async () => {
       const account = await testCreateAccount(249)
       const [owner] = await ethers.getSigners()
@@ -268,6 +339,20 @@ describe('BloctoAccount Upgrade Test', function () {
       await sendERC20(sendAccount, receiveAccount.address, ONE_ETH)
 
       expect(await testERC20.balanceOf(sendAccount.address)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should send ERC20 token in upgrade account', async () => {
+      // prepare
+      const receiveAccount = await testCreateAccount(279)
+      await testERC20.mint(account.address, TWO_ETH)
+      // test send ERC20
+      const before = await testERC20.balanceOf(account.address)
+      const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
+      await sendERC20(account, receiveAccount.address, ONE_ETH)
+
+      expect(await account.VERSION()).to.equal(NextVersion)
+      expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
       expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
@@ -313,6 +398,97 @@ describe('BloctoAccount Upgrade Test', function () {
       })
       expect(findWalletCreated).true
     })
+
+    it('should create account with version 1.5.1', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet2, cosignerWallet2, 0)
+
+      const tx = await factory.createAccount_1_5_1(authorizedWallet2.address,
+        cosignerWallet2.address, recoverWallet2.address,
+        ethers.utils.hexZeroPad('0x409', 32), // random salt
+        pxIndexWithParity,
+        px)
+
+      const receipt = await tx.wait()
+      // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
+      let findWalletCreated = false
+      receipt.events?.forEach((event) => {
+        if (event.event === 'WalletCreated' &&
+            event.args?.authorizedAddress === authorizedWallet2.address) {
+          findWalletCreated = true
+        }
+      })
+      expect(findWalletCreated).true
+    })
+
+    it('should predict version 1.5.1 address', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet2, cosignerWallet2, 0)
+      const salt = BigNumber.from(431)
+
+      const forKeccak = ethers.utils.hexConcat([
+        ethers.utils.hexZeroPad(salt.toHexString(), 32),
+        cosignerWallet2.address, recoverWallet2.address
+      ])
+
+      const newSalt = keccak256(Buffer.from(ethers.utils.arrayify(forKeccak)))
+      const tx = await factory.createAccount_1_5_1(authorizedWallet2.address,
+        cosignerWallet2.address, recoverWallet2.address,
+        newSalt,
+        pxIndexWithParity,
+        px)
+
+      const predictAddr = await factory.getAddress(cosignerWallet2.address, recoverWallet2.address, salt)
+      const receipt = await tx.wait()
+      // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
+      let findWalletCreated = false
+      receipt.events?.forEach((event) => {
+        if (event.event === 'WalletCreated' &&
+            event.args?.authorizedAddress === authorizedWallet2.address &&
+            event.args?.wallet === predictAddr) {
+          findWalletCreated = true
+        }
+      })
+
+      expect(findWalletCreated).true
+    })
+
+    it('should create account with multiple authorized address of version v1.5.1', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const authorizedWallet22 = createTmpAccount()
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      const salt = BigNumber.from(465)
+      const forKeccak = ethers.utils.hexConcat([
+        ethers.utils.hexZeroPad(salt.toHexString(), 32),
+        cosignerWallet2.address, recoverWallet2.address
+      ])
+
+      const newSalt = keccak256(Buffer.from(ethers.utils.arrayify(forKeccak)))
+
+      const predictAddr = await factory.getAddress(cosignerWallet2.address, recoverWallet2.address, salt)
+      const tx = await factory.createAccount2_1_5_1([authorizedWallet2.address, authorizedWallet22.address],
+        cosignerWallet2.address, recoverWallet2.address,
+        newSalt, // random salt
+        [pxIndexWithParity, pxIndexWithParity2],
+        [px, px2])
+
+      const receipt = await tx.wait()
+      // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
+      let findWalletCreated = false
+      receipt.events?.forEach((event) => {
+        if (event.event === 'WalletCreated' &&
+            event.args?.authorizedAddress === authorizedWallet2.address &&
+            event.args?.wallet === predictAddr) {
+          findWalletCreated = true
+        }
+      })
+      expect(findWalletCreated).true
+    })
   })
 
   describe('should upgrade account to different implementation version', () => {
@@ -332,7 +508,7 @@ describe('BloctoAccount Upgrade Test', function () {
       const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
       const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
 
-      factory.setImplementation(implementationV200.address)
+      await factory.setImplementation_1_5_1(implementationV200.address)
       expect(await factory.VERSION()).to.eql('2.0.0')
 
       const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
@@ -359,7 +535,7 @@ describe('BloctoAccount Upgrade Test', function () {
     })
 
     it('new account get new version', async () => {
-      const randomSalt = 54326346
+      const randomSalt = 538
       const accountNew = await testCreateAccount(randomSalt)
 
       expect(await accountNew.VERSION()).to.eql('2.0.0')
@@ -389,6 +565,7 @@ describe('BloctoAccount Upgrade Test', function () {
         [implementation, entryPoint.address, await ethersSigner.getAddress()],
         { initializer: 'initialize' }, create3Factory, ethersSigner, create3Salt)
       await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
+      await factory.setImplementation_1_5_1(implementation)
 
       account = await testCreateAccount(433700, 0, factory)
     })
@@ -587,7 +764,23 @@ describe('BloctoAccount Upgrade Test', function () {
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
           await recoverWallet.getAddress(),
-          BigNumber.from(6346346),
+          BigNumber.from(767),
+          pxIndexWithParity,
+          px,
+          factory
+        )
+      ).to.revertedWith('caller is not a create account role')
+    })
+
+    it('should revert if sender is not grant role for createAccount of version 1.5.1', async () => {
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      await expect(
+        createAccountV151(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(785),
           pxIndexWithParity,
           px,
           factory
@@ -611,6 +804,22 @@ describe('BloctoAccount Upgrade Test', function () {
       ).to.revertedWith('caller is not a create account role')
     })
 
+    it('should revert if sender is not grant role for createAccount2 of version 1.5.1', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const authorizedWallet22 = createTmpAccount()
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      await expect(
+        factory.createAccount2_1_5_1([authorizedWallet2.address, authorizedWallet22.address],
+          cosignerWallet2.address, recoverWallet2.address,
+          ethers.utils.hexZeroPad('0x817', 32),
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+      ).to.revertedWith('caller is not a create account role')
+    })
+
     it('should revert if sender is not grant role for setImplementation', async () => {
       const tmpAccount = createTmpAccount()
       const factoryLink = await BloctoAccountFactory__factory.connect(factory.address, tmpAccount)
@@ -622,7 +831,36 @@ describe('BloctoAccount Upgrade Test', function () {
     it('should revert if setImplementation with zero address', async () => {
       await expect(
         factory.setImplementation(zeroAddress())
-      ).to.revertedWith('Invalid implementation address.')
+      ).to.revertedWith('invalid implementation address.')
+    })
+
+    it('should revert if sender is not grant role for setImplementation_1_5_1', async () => {
+      const tmpAccount = createTmpAccount()
+      const factoryLink = await BloctoAccountFactory__factory.connect(factory.address, tmpAccount)
+      await expect(
+        factoryLink.setImplementation_1_5_1('0x' + 'a'.repeat(40))
+      ).to.revertedWith('caller is not a create account role')
+    })
+
+    it('should revert if setImplementation_1_5_1 with zero address', async () => {
+      await expect(
+        factory.setImplementation_1_5_1(zeroAddress())
+      ).to.revertedWith('invalid implementation address.')
+    })
+
+    // it's not good for set implementation same as implementation150Plus
+    it('should set implementation', async () => {
+      await factory.setImplementation(implementation)
+      expect(
+        await factory.bloctoAccountImplementation()
+      ).to.equal(implementation)
+    })
+
+    it('should set implementation of version 1.5.1', async () => {
+      await factory.setImplementation_1_5_1(implementation)
+      expect(
+        await factory.bloctoAccountImplementation151Plus()
+      ).to.equal(implementation)
     })
   })
 

@@ -13,6 +13,7 @@
     "deploy": "hardhat run deploy/1_0_deploy_account_accountFactory.ts",
     "deploy-create3Factory": "hardhat run deploy/0_deploy_create3Factory.ts",
     "deploy-verifyingPaymaster": "hardhat run deploy/2_deploy_VerifyingPaymaster.ts",
+    "deploy-upgrade": "hardhat run deploy/upgrade/0_upgrade.ts",
     "deploy_verify": "hardhat run deploy/4_verify.ts",
     "deploy_verify_paymaster": "hardhat run deploy/1_deploy_VerifyingPaymaster.ts"
   },
