@@ -13,6 +13,16 @@ Schnorr Multi Sign Test
 npx hardhat test test/schnorrMultiSign.test.ts 
 ```
 
+contract size
+```
+yarn hardhat size-contracts
+```
+
+test coverage
+```
+yarn hardhat coverage  
+```
+
 ## Deploy & Verify
 
 deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
