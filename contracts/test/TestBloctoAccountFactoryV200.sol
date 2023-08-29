@@ -5,7 +5,7 @@ pragma solidity 0.8.17;
 /* solhint-disable no-inline-assembly */
 /* solhint-disable reason-string */
 
-import "../BloctoAccountFactory.sol";
+import "../v1.5.x/BloctoAccountFactory.sol";
 /// Test Blocto account Factory
 
 contract TestBloctoAccountFactoryV200 is Initializable, AccessControlUpgradeable {

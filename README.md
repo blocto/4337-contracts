@@ -15,12 +15,12 @@ npx hardhat test test/schnorrMultiSign.test.ts
 
 contract size
 ```
-yarn hardhat size-contracts
+npx hardhat size-contracts
 ```
 
 test coverage
 ```
-yarn hardhat coverage  
+npx hardhat coverage  
 ```
 
 ## Deploy & Verify
@@ -70,4 +70,6 @@ VerifyingPaymaster
 
 ## Acknowledgement
 
-this repo fork from https://github.com/eth-infinitism/account-abstraction
+1. CoreWallet.sol fork from  https://github.com/dapperlabs/dapper-contracts
+
+2. this repo fork from https://github.com/eth-infinitism/account-abstraction

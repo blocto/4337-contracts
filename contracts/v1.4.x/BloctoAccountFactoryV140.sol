@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "../../BloctoAccountProxy.sol";
+import "../BloctoAccountProxy.sol";
 import "./BloctoAccountV140.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy
@@ -20,6 +20,8 @@ contract BloctoAccountFactoryV140 is Initializable, AccessControlUpgradeable {
     address public bloctoAccountImplementation;
     /// @notice the address from EIP-4337 official implementation
     IEntryPoint public entryPoint;
+    /// @notice the implementation address of BloctoAccountCloneableWallet
+    address public bloctoAccountImplementation151Plus;
 
     event WalletCreated(address wallet, address authorizedAddress, bool full);
 
@@ -37,9 +39,6 @@ contract BloctoAccountFactoryV140 is Initializable, AccessControlUpgradeable {
     }
 
     /// @notice create an account, and return its BloctoAccount.
-    ///     returns the address even if the account is already deployed.
-    ///     Note that during UserOperation execution, this method is called only if the account is not deployed.
-    ///     This method returns an existing account address so that entryPoint.getSenderAddress() would work even after account creation
     /// @param _authorizedAddress the initial authorized address, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
     /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
@@ -69,7 +68,6 @@ contract BloctoAccountFactoryV140 is Initializable, AccessControlUpgradeable {
     }
 
     /// @notice create an account with multiple authorized addresses, and return its BloctoAccount.
-    ///     returns the address even if the account is already deployed.
     /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
     /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
     /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
