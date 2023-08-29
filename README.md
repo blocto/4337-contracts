@@ -2,7 +2,7 @@
 
 ## Audit report
 
-v1.5.0: (contracts/v1.5.x/BloctoAccount_Audit_Final_Report_Quantstamp.pdf)[https://github.com/blocto/4337-contracts/blob/main/contracts/v1.5.x/BloctoAccount_Audit_Final_Report_Quantstamp.pdf]
+v1.5.0: [contracts/v1.5.x/BloctoAccount_Audit_Final_Report_Quantstamp.pdf](https://github.com/blocto/4337-contracts/blob/main/contracts/v1.5.x/BloctoAccount_Audit_Final_Report_Quantstamp.pdf)
 
 
 ## Test
