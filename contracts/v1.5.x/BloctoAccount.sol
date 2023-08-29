@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity 0.8.17;
 
 /* solhint-disable avoid-low-level-calls */
 /* solhint-disable no-inline-assembly */
@@ -8,20 +8,20 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@account-abstraction/contracts/core/BaseAccount.sol";
 
-import "../../TokenCallbackHandler.sol";
-import "./CoreWalletV140.sol";
+import "../utils/TokenCallbackHandler.sol";
+import "./CoreWallet.sol";
 
 /**
  * Blocto account.
  *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
  */
-contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV140, BaseAccount {
+contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, BaseAccount {
     /**
      *  This is the version of this contract.
      */
-    string public constant VERSION = "1.4.0";
+    string public constant VERSION = "1.5.0";
 
-    /// @notice etnrypoint from 4337 official
+    /// @notice entrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
 
     /// @notice initialized _IMPLEMENTATION_SLOT
@@ -37,6 +37,7 @@ contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV
 
     /**
      * override from UUPSUpgradeable
+     * @notice onlyInvoked modifier for only this account owner can enter this function, and (newImplementation) for compiler and it extends from UUPSUpgradeable, so it shoule be here
      * @param newImplementation implementation address
      */
     function _authorizeUpgrade(address newImplementation) internal view override onlyInvoked {
@@ -69,6 +70,7 @@ contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV
      */
     function executeBatch(address[] calldata dest, uint256[] calldata value, bytes[] calldata func) external {
         _requireFromEntryPoint();
+        require(dest.length == value.length, "wrong array lengths");
         require(dest.length == func.length, "wrong array lengths");
         for (uint256 i = 0; i < dest.length; i++) {
             _call(dest[i], value[i], func[i]);
@@ -91,7 +93,7 @@ contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV
     }
 
     /**
-     * implement validate signature method of BaseAccount from etnrypoint
+     * implement validate signature method of BaseAccount from entrypoint
      * @param userOp user operation including signature for validating
      * @param userOpHash user operation hash
      */
@@ -132,8 +134,7 @@ contract BloctoAccountV140 is UUPSUpgradeable, TokenCallbackHandler, CoreWalletV
         entryPoint().withdrawTo(withdrawAddress, amount);
     }
 
-    /// @notice Used to decorate the `init` function so this can only be called one time. Necessary
-    ///  since this contract will often be used as a "clone". (See above.)
+    /// @notice only once for initialized initializedImplementation
     modifier onlyOnceInitImplementation() {
         require(!initializedImplementation, "must not already be initialized");
         initializedImplementation = true;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity 0.8.17;
 
-import "../../CoreWallet/BytesExtractSignature.sol";
+import "../utils/BytesExtractSignature.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -19,7 +19,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 ///  implemented here) is negligable even if you don't need the cosigner functionality, and
 ///  (B) two-of-two multisig (as implemented here) handles a lot of really common use cases, most
 ///  notably third-party gas payment and off-chain blacklisting and fraud detection.
-contract CoreWalletV140 is IERC1271 {
+contract CoreWallet is IERC1271 {
     using BytesExtractSignature for bytes;
     using ECDSA for bytes;
 
@@ -42,6 +42,9 @@ contract CoreWalletV140 is IERC1271 {
     /// @notice Q constant for schnorr signature verify
     uint256 internal constant Q = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
+    /// @notice s of signature must be less than S_MAX refer from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/f29307cfe08c7d76d96a38bf94bab5fec223c943/contracts/utils/cryptography/ECDSA.sol#L156
+    bytes32 internal constant S_MAX = bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0);
+
     /// @notice The pre-shifted authVersion (to get the current authVersion as an integer,
     ///  shift this value right by 160 bits). Starts as `1 << 160` (`AUTH_VERSION_INCREMENTOR`)
     ///  See the comment on the `authorizations` variable for how this is used.
@@ -59,9 +62,6 @@ contract CoreWalletV140 is IERC1271 {
     ///  The values in this mapping are 256bit words, whose lower 20 bytes constitute "cosigners"
     ///  for each address. If an address maps to itself, then that address is said to have no cosigner.
     ///
-    ///  The upper 12 bytes are reserved for future meta-data purposes.  The meta-data could refer
-    ///  to the key (authorized address) or the value (cosigner) of the mapping.
-    ///
     ///  Addresses that map to a non-zero cosigner in the current authVersion are called
     ///  "authorized addresses".
     mapping(uint256 => uint256) public authorizations;
@@ -73,7 +73,7 @@ contract CoreWalletV140 is IERC1271 {
     /// @notice A per-key nonce value, incremented each time a transaction is processed with that key.
     ///  Used for replay prevention. The nonce value in the transaction must exactly equal the current
     ///  nonce value in the wallet for that key. (This mirrors the way Ethereum's transaction nonce works.)
-    mapping(address => uint256) public nonces;
+    uint256 public nonce;
 
     /// @notice A mapping tracking dynamically supported interfaces and their corresponding
     ///  implementation contracts. Keys are interface IDs and values are addresses of
@@ -147,7 +147,7 @@ contract CoreWalletV140 is IERC1271 {
     /// @param cosigner the 2-of-2 signatory (optional).
     event Authorized(address authorizedAddress, uint256 cosigner);
 
-    event AuthorizedMergedKey(uint256 authorizedAddress, bytes32 mergedKey);
+    event AuthorizedMergedKey(uint8 mergedKeyIndexWithParity, bytes32 mergedKey);
 
     /// @notice Emitted when an emergency recovery has been performed. If this event is fired,
     ///  ALL previously authorized addresses have been deauthorized and the only authorized
@@ -198,9 +198,10 @@ contract CoreWalletV140 is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) public onlyOnce {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != _recoveryAddress, "Do not use the recovery address as a cosigner.");
+        require(_authorizedAddress != address(0), "authorized addresses must not be zero");
+        require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
+        require(address(uint160(_cosigner)) != address(0), "cosigner address must not be zero");
 
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
@@ -225,15 +226,18 @@ contract CoreWalletV140 is IERC1271 {
         uint8[] calldata _mergedKeyIndexWithParitys,
         bytes32[] calldata _mergedKeys
     ) public onlyOnce {
-        require(_authorizedAddresses.length > 0, "invalid _authorizedAddresses array");
-        require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "Array length not match with.");
-        require(_authorizedAddresses.length == _mergedKeys.length, "Array length not match.");
+        require(_authorizedAddresses.length != 0, "invalid authorizedAddresses array");
+        require(_authorizedAddresses.length == _mergedKeyIndexWithParitys.length, "array length not match");
+        require(_authorizedAddresses.length == _mergedKeys.length, "array length not match");
+        require(address(uint160(_cosigner)) != address(0), "cosigner address must not be zero");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
         recoveryAddress = _recoveryAddress;
         // set initial authorization value
         authVersion = AUTH_VERSION_INCREMENTOR;
         for (uint256 i = 0; i < _authorizedAddresses.length; i++) {
             address _authorizedAddress = _authorizedAddresses[i];
-            require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
+            require(_authorizedAddress != address(0), "authorized addresses must not be zero");
+            require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
             authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
             mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
 
@@ -259,23 +263,22 @@ contract CoreWalletV140 is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-        if (msg.data.length > 0) {
-            address delegate = delegates[msg.sig];
-            require(delegate > COMPOSITE_PLACEHOLDER, "Invalid transaction");
 
-            // We have found a delegate contract that is responsible for the method signature of
-            // this call. Now, pass along the calldata of this CALL to the delegate contract.
-            assembly {
-                calldatacopy(0, 0, calldatasize())
-                let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
-                returndatacopy(0, 0, returndatasize())
+        address delegate = delegates[msg.sig];
+        require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
 
-                // If the delegate reverts, we revert. If the delegate does not revert, we return the data
-                // returned by the delegate to the original caller.
-                switch result
-                case 0 { revert(0, returndatasize()) }
-                default { return(0, returndatasize()) }
-            }
+        // We have found a delegate contract that is responsible for the method signature of
+        // this call. Now, pass along the calldata of this CALL to the delegate contract.
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+
+            // If the delegate reverts, we revert. If the delegate does not revert, we return the data
+            // returned by the delegate to the original caller.
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
         }
     }
 
@@ -319,12 +322,12 @@ contract CoreWalletV140 is IERC1271 {
         uint8 _mergedIndexWithParity,
         bytes32 _mergedKey
     ) external onlyInvoked {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != recoveryAddress, "do not use the recovery address as an authorized address");
         require(
             (address(uint160(_cosigner)) == address(0) && _mergedKey == 0)
                 || address(uint160(_cosigner)) != recoveryAddress,
-            "Do not use the recovery address as a cosigner."
+            "do not use the recovery address as a cosigner"
         );
 
         authorizations[authVersion + uint256(uint160(_authorizedAddress))] = _cosigner;
@@ -337,7 +340,8 @@ contract CoreWalletV140 is IERC1271 {
     /// @dev Must be called through `invoke()`
     /// @param _mergedKeyIndexWithParity the merged key index
     /// @param _mergedKey the corresponding merged authorized key & cosigner key by Schnorr
-    function setMergedKey(uint256 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
+    function setMergedKey(uint8 _mergedKeyIndexWithParity, bytes32 _mergedKey) external onlyInvoked {
+        require((_mergedKeyIndexWithParity & 0x80) > 0, "invalid merged key index");
         mergedKeys[authVersion + _mergedKeyIndexWithParity] = _mergedKey;
         emit AuthorizedMergedKey(_mergedKeyIndexWithParity, _mergedKey);
     }
@@ -357,9 +361,9 @@ contract CoreWalletV140 is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) external onlyRecoveryAddress {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != address(0), "cosigner must not be zero");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
@@ -384,9 +388,11 @@ contract CoreWalletV140 is IERC1271 {
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
     ) external onlyRecoveryAddress {
-        require(_authorizedAddress != address(0), "Authorized addresses must not be zero.");
-        require(_authorizedAddress != _recoveryAddress, "Do not use the recovery address as an authorized address.");
-        require(address(uint160(_cosigner)) != address(0), "The cosigner must not be zero.");
+        require(_authorizedAddress != address(0), "authorized address must not be zero");
+        require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
+        require(address(uint160(_cosigner)) != address(0), "cosigner must not be zero");
+        require(_recoveryAddress != address(0), "recovery address must not be zero");
+        require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");
 
         // Incrementing the authVersion number effectively erases the authorizations mapping. See the comments
         // on the authorizations variable (above) for more information.
@@ -412,8 +418,9 @@ contract CoreWalletV140 is IERC1271 {
     function setRecoveryAddress(address _recoveryAddress) external onlyInvoked {
         require(
             address(uint160(authorizations[authVersion + uint256(uint160(_recoveryAddress))])) == address(0),
-            "Do not use an authorized address as the recovery address."
+            "do not use an authorized address as the recovery address"
         );
+        require(_recoveryAddress != address(0), "recovery address must not be zero");
 
         address previous = recoveryAddress;
         recoveryAddress = _recoveryAddress;
@@ -428,12 +435,11 @@ contract CoreWalletV140 is IERC1271 {
     /// @param _version the version of the mapping which you want to delete (unshifted)
     /// @param _keys the authorization keys to delete
     function recoverGas(uint256 _version, address[] calldata _keys) external {
-        // TODO: should this be 0xffffffffffffffffffffffff ?
-        require(_version > 0 && _version < 0xffffffff, "Invalid version number.");
+        require(_version < 0xffffffffffffffffffffffff, "invalid version number");
 
         uint256 shiftedVersion = _version << 160;
 
-        require(shiftedVersion < authVersion, "You can only recover gas from expired authVersions.");
+        require(shiftedVersion < authVersion, "only recover gas from expired authVersions");
 
         for (uint256 i = 0; i < _keys.length; ++i) {
             delete(authorizations[shiftedVersion + uint256(uint160(_keys[i]))]);
@@ -446,6 +452,7 @@ contract CoreWalletV140 is IERC1271 {
         // s := schnorr signature
         // parity := public key y-coord parity (27 or 28)
         (bytes32 e, bytes32 s, uint8 keyIndexWithParity) = sig.extractSignature(0);
+        // require(s <= S_MAX, "s of signature is too large");
         bytes32 px = mergedKeys[authVersion + uint256(keyIndexWithParity)];
         uint8 parity = (keyIndexWithParity & 0x1) + 27;
 
@@ -458,7 +465,6 @@ contract CoreWalletV140 is IERC1271 {
         // check if they're zero.
         address R = ecrecover(sp, parity, px, ep);
         require(R != address(0), "ecrecover failed");
-        // return e == keccak256(abi.encodePacked(R, uint8(parity), px, hash)) ? address(uint160(uint256(px))) : address(0);
         return e == keccak256(abi.encodePacked(R, parity, px, hash));
     }
 
@@ -480,7 +486,8 @@ contract CoreWalletV140 is IERC1271 {
         // with the same key
         // 3. Gnosis does something similar:
         // https://github.com/gnosis/safe-contracts/blob/102e632d051650b7c4b0a822123f449beaf95aed/contracts/GnosisSafe.sol
-        bytes32 operationHash = keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, _hash));
+        bytes32 operationHash =
+            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _hash));
 
         if (_signature.length == 65 && (_signature[64] & 0x80) > 0) {
             return verifySchnorr(operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
@@ -495,11 +502,14 @@ contract CoreWalletV140 is IERC1271 {
         // extract 1 or 2 signatures depending on length
         if (_signature.length == 65) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
+            require(s[0] <= S_MAX, "s of signature[0] is too large");
             signer = ecrecover(operationHash, v[0], r[0], s[0]);
             cosigner = signer;
         } else if (_signature.length == 130) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
+            require(s[0] <= S_MAX, "s of signature[0] is too large");
             (r[1], s[1], v[1]) = _signature.extractSignature(65);
+            require(s[1] <= S_MAX, "s of signature[1] is too large");
             signer = ecrecover(operationHash, v[0], r[0], s[0]);
             cosigner = ecrecover(operationHash, v[1], r[1], s[1]);
         } else {
@@ -536,7 +546,7 @@ contract CoreWalletV140 is IERC1271 {
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner)
         require(
             address(uint160(authorizations[authVersion + uint256(uint160(msg.sender))])) == msg.sender,
-            "Invalid authorization."
+            "invalid authorization"
         );
 
         internalInvoke(0, data);
@@ -547,7 +557,7 @@ contract CoreWalletV140 is IERC1271 {
     /// @param v the v value for the signature; see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
     /// @param r the r value for the signature
     /// @param s the s value for the signature
-    /// @param nonce the nonce value for the signature
+    /// @param inonce the nonce value for the signature
     /// @param authorizedAddress the address of the authorization key; this is used here so that cosigner signatures are interchangeable
     ///  between this function and `invoke2()`
     /// @param data The data containing the transactions to be invoked; see internalInvoke for details.
@@ -555,25 +565,26 @@ contract CoreWalletV140 is IERC1271 {
         uint8 v,
         bytes32 r,
         bytes32 s,
-        uint256 nonce,
+        uint256 inonce,
         address authorizedAddress,
         bytes calldata data
     ) external {
         // check signature version
-        require(v == 27 || v == 28, "Invalid signature version.");
-
+        require(v == 27 || v == 28, "invalid signature version");
+        require(s <= S_MAX, "s of signature is too large");
         // calculate hash
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, authorizedAddress, data));
+        bytes32 operationHash = keccak256(
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, inonce, authorizedAddress, data)
+        );
 
         // recover signer
         address signer = ecrecover(operationHash, v, r, s);
 
         // check for valid signature
-        require(signer != address(0), "Invalid signature.");
+        require(signer != address(0), "invalid signature");
 
         // check nonce
-        require(nonce > nonces[signer], "must use valid nonce for signer");
+        require(inonce > nonce && (inonce < (nonce + 10)), "must use valid nonce for signer");
 
         // check signer
         require(signer == authorizedAddress, "authorized addresses must be equal");
@@ -583,10 +594,10 @@ contract CoreWalletV140 is IERC1271 {
 
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
         // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == signer || requiredCosigner == msg.sender, "Invalid authorization.");
+        require(requiredCosigner == signer || requiredCosigner == msg.sender, "invalid authorization");
 
-        // increment nonce to prevent replay attacks
-        nonces[signer] = nonce;
+        // set nonce
+        nonce = inonce;
 
         // call internal function
         internalInvoke(operationHash, data);
@@ -602,29 +613,29 @@ contract CoreWalletV140 is IERC1271 {
         // check signature version
         // `ecrecover` will in fact return 0 if given invalid
         // so perhaps this check is redundant
-        require(v == 27 || v == 28, "Invalid signature version.");
-
-        uint256 nonce = nonces[msg.sender];
+        require(v == 27 || v == 28, "invalid signature version");
+        require(s <= S_MAX, "s of signature is too large");
 
         // calculate hash
-        bytes32 operationHash =
-            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, nonce, msg.sender, data));
+        bytes32 operationHash = keccak256(
+            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, nonce, msg.sender, data)
+        );
 
         // recover cosigner
         address cosigner = ecrecover(operationHash, v, r, s);
 
         // check for valid signature
-        require(cosigner != address(0), "Invalid signature.");
+        require(cosigner != address(0), "invalid signature");
 
         // Get required cosigner
         address requiredCosigner = address(uint160(authorizations[authVersion + uint256(uint160(msg.sender))]));
 
         // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
         // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "Invalid authorization.");
+        require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "invalid authorization");
 
         // increment nonce to prevent replay attacks
-        nonces[msg.sender] = nonce + 1;
+        nonce++;
 
         internalInvoke(operationHash, data);
     }
@@ -647,8 +658,8 @@ contract CoreWalletV140 is IERC1271 {
 
         // We need to store a reference to this string as a variable so we can use it as an argument to
         // the revert call from assembly.
-        string memory invalidLengthMessage = "Data field too short";
-        string memory callFailed = "Call failed";
+        string memory invalidLengthMessage = "data field too short";
+        string memory callFailed = "call failed";
 
         // At an absolute minimum, the data field must be at least 85 bytes
         // <revert(1), to_address(20), value(32), data_length(32)>

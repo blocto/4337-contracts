@@ -8,8 +8,8 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@account-abstraction/contracts/core/BaseAccount.sol";
 
-import "../TokenCallbackHandler.sol";
-import "../CoreWallet/CoreWallet.sol";
+import "../utils/TokenCallbackHandler.sol";
+import "../v1.5.x/CoreWallet.sol";
 
 /**
  * Blocto account.
