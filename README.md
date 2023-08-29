@@ -13,6 +13,16 @@ Schnorr Multi Sign Test
 npx hardhat test test/schnorrMultiSign.test.ts 
 ```
 
+contract size
+```
+npx hardhat size-contracts
+```
+
+test coverage
+```
+npx hardhat coverage  
+```
+
 ## Deploy & Verify
 
 deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
@@ -60,4 +70,6 @@ VerifyingPaymaster
 
 ## Acknowledgement
 
-this repo fork from https://github.com/eth-infinitism/account-abstraction
+1. CoreWallet.sol fork from  https://github.com/dapperlabs/dapper-contracts
+
+2. this repo fork from https://github.com/eth-infinitism/account-abstraction

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "..//BloctoAccountProxy.sol";
+import "../BloctoAccountProxy.sol";
 import "./BloctoAccountV140.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy

@@ -479,7 +479,6 @@ contract CoreWallet is IERC1271 {
     /// @param _signature Signature byte array associated with `_data`
     /// @return Magic value `0x1626ba7e` upon success, 0 otherwise.
     function isValidSignature(bytes32 _hash, bytes calldata _signature) external view returns (bytes4) {
-        // return verifySchnorr(hash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
         // We 'hash the hash' for the following reasons:
         // 1. `hash` is not the hash of an Ethereum transaction
         // 2. signature must target this wallet to avoid replaying the signature for another wallet
@@ -489,8 +488,19 @@ contract CoreWallet is IERC1271 {
         bytes32 operationHash =
             keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _hash));
 
+        return _isValidSignature(operationHash, _signature);
+    }
+
+    /// @notice Should return whether the signature provided is valid for the provided data
+    ///  See https://github.com/ethereum/EIPs/issues/1271
+    /// @dev This function meets the following conditions as per the EIP:
+    ///  MUST return the bytes4 magic value `0x1626ba7e` when function passes.
+    /// @param _operationHash A 32 byte hash of the signed data.  For internal usage, the _operationHash shoule be hash with EIP191V0 first
+    /// @param _signature Signature byte array associated with `_data`
+    /// @return Magic value `0x1626ba7e` upon success, 0 otherwise.
+    function _isValidSignature(bytes32 _operationHash, bytes calldata _signature) private view returns (bytes4) {
         if (_signature.length == 65 && (_signature[64] & 0x80) > 0) {
-            return verifySchnorr(operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
+            return verifySchnorr(_operationHash, _signature) ? IERC1271.isValidSignature.selector : bytes4(0);
         }
 
         bytes32[2] memory r;
@@ -503,15 +513,15 @@ contract CoreWallet is IERC1271 {
         if (_signature.length == 65) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
             require(s[0] <= S_MAX, "s of signature[0] is too large");
-            signer = ecrecover(operationHash, v[0], r[0], s[0]);
+            signer = ecrecover(_operationHash, v[0], r[0], s[0]);
             cosigner = signer;
         } else if (_signature.length == 130) {
             (r[0], s[0], v[0]) = _signature.extractSignature(0);
             require(s[0] <= S_MAX, "s of signature[0] is too large");
             (r[1], s[1], v[1]) = _signature.extractSignature(65);
             require(s[1] <= S_MAX, "s of signature[1] is too large");
-            signer = ecrecover(operationHash, v[0], r[0], s[0]);
-            cosigner = ecrecover(operationHash, v[1], r[1], s[1]);
+            signer = ecrecover(_operationHash, v[0], r[0], s[0]);
+            cosigner = ecrecover(_operationHash, v[1], r[1], s[1]);
         } else {
             return 0;
         }
@@ -638,6 +648,29 @@ contract CoreWallet is IERC1271 {
         nonce++;
 
         internalInvoke(operationHash, data);
+    }
+
+    /// @notice A version of `invoke()` that use isValidSignature to check the authorization of signers
+    /// @param _nonce the nonce value for the signature
+    /// @param _data The data containing the transactions to be invoked; see internalInvoke for details.
+    /// @param _signature Signature byte array associated with `_nonce, _data`
+    function invoke2(uint256 _nonce, bytes calldata _data, bytes calldata _signature) external {
+        // calculate hash
+        bytes32 operationHash =
+            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _nonce, _data));
+
+        // valid signature
+        bytes4 result = _isValidSignature(operationHash, _signature);
+        require(result == IERC1271.isValidSignature.selector, "invalid signature");
+
+        // check nonce
+        require(_nonce > nonce && (_nonce < (nonce + 10)), "must use valid nonce");
+
+        // set nonce
+        nonce = _nonce;
+
+        // call internal function
+        internalInvoke(operationHash, _data);
     }
 
     /// @dev Internal invoke call,

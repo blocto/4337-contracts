@@ -26,14 +26,14 @@ import {
   deployEntryPoint,
   ONE_ETH,
   TWO_ETH,
+  FIVE_ETH,
   createAuthorizedCosignerRecoverWallet,
   txData,
   signMessage,
   getMergedKey,
   signMessageWithoutChainId,
   rethrow,
-  FIVE_ETH
-
+  signForInovke2
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad } from '@ethersproject/bytes'
@@ -59,7 +59,7 @@ describe('BloctoAccount Upgrade Test', function () {
   let testERC20: TestERC20
 
   const NowVersion = '1.4.0'
-  const NextVersion = '1.5.1'
+  const NextVersion = '1.5.2'
 
   async function testCreateAccount (salt = 0, mergedKeyIndex = 0, ifactory = factory, version = NextVersion): Promise<BloctoAccount> {
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
@@ -79,6 +79,7 @@ describe('BloctoAccount Upgrade Test', function () {
         )
         break
       case '1.5.1':
+      case '1.5.2':
       default:
         account = await createAccountV151(
           ethersSigner,
@@ -399,7 +400,7 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(findWalletCreated).true
     })
 
-    it('should create account with version 1.5.1', async () => {
+    it('should create account with version 1.5.2', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
 
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet2, cosignerWallet2, 0)
@@ -422,7 +423,7 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(findWalletCreated).true
     })
 
-    it('should predict version 1.5.1 address', async () => {
+    it('should predict version 1.5.2 address', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
 
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet2, cosignerWallet2, 0)
@@ -455,7 +456,7 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(findWalletCreated).true
     })
 
-    it('should create account with multiple authorized address of version v1.5.1', async () => {
+    it('should create account with multiple authorized address of version v1.5.2', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
 
@@ -488,6 +489,61 @@ describe('BloctoAccount Upgrade Test', function () {
         }
       })
       expect(findWalletCreated).true
+    })
+
+    it('should send erc20 with invoke2', async () => {
+      const account = await testCreateAccount(496)
+      const receiver = createTmpAccount()
+      await testERC20.mint(account.address, TWO_ETH)
+
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
+
+      const newNonce = (await account.nonce()).add(1)
+
+      // test send ERC20
+      const before = await testERC20.balanceOf(account.address)
+      const beforeRecevive = await testERC20.balanceOf(receiver.address)
+
+      const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet)
+      await account.invoke2(newNonce, erc20TransferData, sign)
+
+      expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should revert if wrong cosigner for invoke2()', async () => {
+      const account = await testCreateAccount(516)
+      const receiver = createTmpAccount()
+      await testERC20.mint(account.address, TWO_ETH)
+
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
+
+      const newNonce = (await account.nonce()).add(1)
+
+      const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, receiver)
+      // await account.invoke2(newNonce, erc20TransferData, sign)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.revertedWith('invalid signature')
+    })
+
+    it('should revert if wrong nonce for invoke2()', async () => {
+      const account = await testCreateAccount(533)
+      const receiver = createTmpAccount()
+      await testERC20.mint(account.address, TWO_ETH)
+
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
+
+      const newNonce = (await account.nonce()).add(1000)
+
+      const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet)
+      // await account.invoke2(newNonce, erc20TransferData, sign)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.revertedWith('must use valid nonce')
     })
   })
 
@@ -772,7 +828,7 @@ describe('BloctoAccount Upgrade Test', function () {
       ).to.revertedWith('caller is not a create account role')
     })
 
-    it('should revert if sender is not grant role for createAccount of version 1.5.1', async () => {
+    it('should revert if sender is not grant role for createAccount of version 1.5.2', async () => {
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
       await expect(
         createAccountV151(
@@ -804,7 +860,7 @@ describe('BloctoAccount Upgrade Test', function () {
       ).to.revertedWith('caller is not a create account role')
     })
 
-    it('should revert if sender is not grant role for createAccount2 of version 1.5.1', async () => {
+    it('should revert if sender is not grant role for createAccount2 of version 1.5.2', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
       const authorizedWallet22 = createTmpAccount()
 
@@ -856,7 +912,7 @@ describe('BloctoAccount Upgrade Test', function () {
       ).to.equal(implementation)
     })
 
-    it('should set implementation of version 1.5.1', async () => {
+    it('should set implementation of version 1.5.2', async () => {
       await factory.setImplementation_1_5_1(implementation)
       expect(
         await factory.bloctoAccountImplementation151Plus()
