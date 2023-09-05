@@ -185,4 +185,13 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         // emit event only with _authorizedAddresses[0]
         emit WalletCreated(address(ret), _authorizedAddresses[0], true);
     }
+
+    /// @notice calculate the counterfactual address of this account as it would be returned by createAccount_1_5_1()
+    /// @param _salt salt for create account (used for address calculation in create2)
+    function getAddress_1_5_1(bytes32 _salt) public view returns (address) {
+        return Create2.computeAddress(
+            _salt,
+            keccak256(abi.encodePacked(type(BloctoAccountProxy).creationCode, abi.encode(address(initImplementation))))
+        );
+    }
 }

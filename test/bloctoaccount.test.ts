@@ -472,6 +472,8 @@ describe('BloctoAccount Upgrade Test', function () {
       const newSalt = keccak256(Buffer.from(ethers.utils.arrayify(forKeccak)))
 
       const predictAddr = await factory.getAddress(cosignerWallet2.address, recoverWallet2.address, salt)
+      const predictAddr151 = await factory.getAddress_1_5_1(newSalt)
+
       const tx = await factory.createAccount2_1_5_1([authorizedWallet2.address, authorizedWallet22.address],
         cosignerWallet2.address, recoverWallet2.address,
         newSalt, // random salt
@@ -484,7 +486,8 @@ describe('BloctoAccount Upgrade Test', function () {
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
             event.args?.authorizedAddress === authorizedWallet2.address &&
-            event.args?.wallet === predictAddr) {
+            event.args?.wallet === predictAddr &&
+            event.args?.wallet === predictAddr151) {
           findWalletCreated = true
         }
       })
