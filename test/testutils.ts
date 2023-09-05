@@ -447,3 +447,13 @@ export function sign2Str (signer: Wallet, data: string): string {
 
   return concatSig(toBuffer(sig.v), toBuffer(sig.r), toBuffer(sig.s))
 }
+
+export function get151SaltFromAddress (
+  salt: number,
+  cosignerAddresses: string,
+  recoverAddresses: string): string {
+  return keccak256(concat([
+    ethers.utils.hexZeroPad(BigNumber.from(salt).toHexString(), 32),
+    cosignerAddresses, recoverAddresses
+  ]))
+}
