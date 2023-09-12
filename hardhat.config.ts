@@ -21,6 +21,14 @@ function getDeployAccount (): string[] {
   return (process.env.ETH_PRIVATE_KEY !== undefined) ? [process.env.ETH_PRIVATE_KEY] : []
 }
 
+const optimizedComilerSettings = {
+  version: '0.8.17',
+  settings: {
+    optimizer: { enabled: true, runs: 1000000 },
+    viaIR: true
+  }
+}
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 const config: HardhatUserConfig = {
@@ -30,7 +38,10 @@ const config: HardhatUserConfig = {
       settings: {
         optimizer: { enabled: true, runs: 1000000 }
       }
-    }]
+    }],
+    overrides: {
+      'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings
+    }
   },
   networks: {
     hardhat: {
@@ -95,6 +106,11 @@ const config: HardhatUserConfig = {
       url: 'https://api.avax-test.network/ext/bc/C/rpc',
       accounts: getDeployAccount(),
       chainId: 43113
+    },
+    scroll_testnet: {
+      url: 'https://sepolia-rpc.scroll.io',
+      accounts: getDeployAccount(),
+      chainId: 534351
     }
   },
   mocha: {

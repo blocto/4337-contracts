@@ -106,6 +106,8 @@ contract CoreWallet is IERC1271 {
     ///  for more information about clone contracts.
     bool public initialized;
 
+    error ExecutionResult(bool targetSuccess);
+
     /// @notice Used to decorate methods that can only be called directly by the recovery address.
     modifier onlyRecoveryAddress() {
         require(msg.sender == recoveryAddress, "sender must be recovery address");
@@ -671,6 +673,19 @@ contract CoreWallet is IERC1271 {
 
         // call internal function
         internalInvoke(operationHash, _data);
+    }
+
+    /// @notice simulate internalInvoke result off-chain
+    /// @dev this function will revert always
+    /// @param _nonce the nonce value for the signature
+    /// @param _data The data containing the transactions to be invoked; see internalInvoke for details.
+    function simulateInvoke(uint256 _nonce, bytes calldata _data) external {
+        // check nonce
+        require(_nonce > nonce && (_nonce < (nonce + 10)), "must use valid nonce");
+        // test internalInvoke
+        internalInvoke(bytes32(0), _data);
+
+        revert ExecutionResult(true);
     }
 
     /// @dev Internal invoke call,
