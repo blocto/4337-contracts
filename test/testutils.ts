@@ -385,7 +385,7 @@ export async function signMessageWithoutChainId (signerWallet: Wallet, accountAd
   return sign
 }
 
-export async function signForInovke2 (accountAddr: string, nonce: BigNumber, data: Uint8Array, signer: Wallet, cosigner: Wallet): Promise<string> {
+export async function signForInovke2 (accountAddr: string, nonce: BigNumber, data: Uint8Array, signer: Wallet, cosigner: Wallet, useSchnorr = false, mergedKeyIndex = 0): Promise<string> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
 
   const dataForHash = concat([
@@ -393,10 +393,39 @@ export async function signForInovke2 (accountAddr: string, nonce: BigNumber, dat
     data
   ])
   const hash191V0 = hashMessageEIP191V0((await ethers.provider.getNetwork()).chainId, accountAddr, dataForHash)
-  const signerSignature = sign2Str(signer, hash191V0)
-  const cosignerSignature = sign2Str(cosigner, hash191V0)
 
-  const signature = signerSignature + cosignerSignature.slice(2)
+  let signature = ''
+  if (useSchnorr) {
+    // for only 1 byte, (isSchnorr,1)(authKeyIdx,6)(parity,1)
+    const mergedKeyIndexAddHighBit = 128 + (mergedKeyIndex << 1)
+    const signerOne = new DefaultSigner(signer)
+    const signerTwo = new DefaultSigner(cosigner)
+    const publicKeys = [signerOne.getPublicKey(), signerTwo.getPublicKey()]
+    const publicNonces = [signerOne.getPublicNonces(), signerTwo.getPublicNonces()]
+    const combinedPublicKey = Schnorrkel.getCombinedPublicKey(publicKeys)
+    // because of the parity byte is 2, 3 so sub 2
+    const pxIndexWithParity = combinedPublicKey.buffer.slice(0, 1).readInt8() - 2 + mergedKeyIndexAddHighBit
+
+    const { signature: sigOne, challenge: e } = signerOne.multiSignMessage(hash191V0, publicKeys, publicNonces)
+    const { signature: sigTwo } = signerTwo.multiSignMessage(hash191V0, publicKeys, publicNonces)
+    const sSummed = Schnorrkel.sumSigs([sigOne, sigTwo])
+
+    // wrap the result
+    // e (bytes32), s (bytes32), pxIndexWithParity (uint8)
+    // pxIndexWithParity (7 bit for pxIndex, 1 bit for parity)
+    const hexPxIndexWithParity = ethers.utils.hexlify(pxIndexWithParity).slice(-2)
+    const abiCoder = new ethers.utils.AbiCoder()
+    signature = abiCoder.encode(['bytes32', 'bytes32'], [
+      e.buffer,
+      sSummed.buffer
+    ]) + hexPxIndexWithParity
+  } else {
+    const signerSignature = sign2Str(signer, hash191V0)
+    const cosignerSignature = sign2Str(cosigner, hash191V0)
+
+    signature = signerSignature + cosignerSignature.slice(2)
+  }
+
   return signature
 }
 

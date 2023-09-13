@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Wallet, BigNumber } from 'ethers'
+import { Wallet, BigNumber, ContractTransaction } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccount,
@@ -42,6 +42,8 @@ import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 import { fillSignWithEIP191V0 } from './entrypoint/UserOp'
 import { keccak256, zeroAddress } from 'ethereumjs-util'
+
+const ShowGasUsage = false
 
 describe('BloctoAccount Upgrade Test', function () {
   const ethersSigner = ethers.provider.getSigner()
@@ -123,7 +125,7 @@ describe('BloctoAccount Upgrade Test', function () {
   }
 
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
-  async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<void> {
+  async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
     let authorizeInAccountNonce: BigNumber
     if (withChainId) {
@@ -139,7 +141,7 @@ describe('BloctoAccount Upgrade Test', function () {
       testERC20.interface.encodeFunctionData('transfer', [to, amount]))
 
     const sign = withChainId ? await signMessage(authorizedWallet, account.address, authorizeInAccountNonce, data) : await signMessageWithoutChainId(authorizedWallet, account.address, authorizeInAccountNonce, data)
-    await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
+    return await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
   }
 
   before(async function () {
@@ -185,7 +187,6 @@ describe('BloctoAccount Upgrade Test', function () {
       getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPoint.address])
     )
     expect((await ethers.provider.getCode(implementationNextVersion))).not.equal('0x')
-    console.log('after main before')
   })
 
   // upgrade from v140
@@ -340,10 +341,37 @@ describe('BloctoAccount Upgrade Test', function () {
       const before = await testERC20.balanceOf(sendAccount.address)
       const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
 
-      await sendERC20(sendAccount, receiveAccount.address, ONE_ETH)
+      const tx = await sendERC20(sendAccount, receiveAccount.address, ONE_ETH)
+      if (ShowGasUsage) {
+        const receipt = await tx.wait()
+        console.log('send erc20 gasUsed: ', receipt.gasUsed)
+      }
 
       expect(await testERC20.balanceOf(sendAccount.address)).to.equal(before.sub(ONE_ETH))
       expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should send native token', async () => {
+      // prepare
+      const sendAccount = await testCreateAccount(2001352)
+      const receiveAccount = await testCreateAccount(2002353)
+      await fund(sendAccount.address, '5')
+
+      // test send native token
+      const before = await ethers.provider.getBalance(sendAccount.address)
+      const beforeRecevive = await ethers.provider.getBalance(receiveAccount.address)
+
+      // sign and send
+      const authorizeInAccountNonce = (await sendAccount.nonce()).add(1)
+
+      const accountLinkCosigner = BloctoAccount__factory.connect(sendAccount.address, cosignerWallet)
+      const data = txData(1, receiveAccount.address, BigNumber.from(TWO_ETH), '0x')
+
+      const sign = await signMessage(authorizedWallet, sendAccount.address, authorizeInAccountNonce, data)
+      await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
+
+      expect(await ethers.provider.getBalance(sendAccount.address)).to.equal(before.sub(TWO_ETH))
+      expect(await ethers.provider.getBalance(receiveAccount.address)).to.equal(beforeRecevive.add(TWO_ETH))
     })
 
     it('should send ERC20 token in upgrade account', async () => {
@@ -507,7 +535,36 @@ describe('BloctoAccount Upgrade Test', function () {
       const beforeRecevive = await testERC20.balanceOf(receiver.address)
 
       const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet)
-      await account.invoke2(newNonce, erc20TransferData, sign)
+      const tx = await account.invoke2(newNonce, erc20TransferData, sign)
+      if (ShowGasUsage) {
+        const receipt = await tx.wait()
+        console.log('send erc20 invoke2 gasUsed: ', receipt.gasUsed)
+      }
+
+      expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
+    })
+
+    it('should send erc20 with invoke2 use Schnorr', async () => {
+      const account = await testCreateAccount(540)
+      const receiver = createTmpAccount()
+      await testERC20.mint(account.address, TWO_ETH)
+
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
+
+      const newNonce = (await account.nonce()).add(1)
+
+      // test send ERC20
+      const before = await testERC20.balanceOf(account.address)
+      const beforeRecevive = await testERC20.balanceOf(receiver.address)
+
+      const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet, true, 0)
+      const tx = await account.invoke2(newNonce, erc20TransferData, sign)
+      if (ShowGasUsage) {
+        const receipt = await tx.wait()
+        console.log('send erc20 invoke2 gasUsed (Schnorr): ', receipt.gasUsed)
+      }
 
       expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
       expect(await testERC20.balanceOf(receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
@@ -1043,6 +1100,59 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await testERC20.balanceOf(erc20Receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
 
       const receipt = await tx.wait()
+      if (ShowGasUsage) {
+        console.log('createAccountWithInvoke2 gasUsed', receipt.gasUsed.toString())
+      }
+      let findWalletCreated = false
+      receipt.events?.forEach((event) => {
+        if (event.event === 'WalletCreated' &&
+            event.args?.authorizedAddress === authorizedEOA.address &&
+            event.args?.wallet === predictAddr151) {
+          findWalletCreated = true
+        }
+      })
+      expect(findWalletCreated).true
+    })
+
+    it('should create account and run tx from createAccountWithInvoke2 use Schnorr', async () => {
+      // prepare account auth
+      const mergedKeyIndex = 0
+      const [authorizedEOA, cosignerEOA, recoverEOA] = createAuthorizedCosignerRecoverWallet()
+      const salt = 1120
+      const newSalt = get151SaltFromAddress(salt, cosignerEOA.address, recoverEOA.address)
+      const predictAddr151 = await factoryCreateAccountRole.getAddress_1_5_1(newSalt)
+      const [px, pxIndexWithParity] = getMergedKey(authorizedEOA, cosignerEOA, mergedKeyIndex)
+
+      // prepare account first tx
+      const erc20Receiver = createTmpAccount()
+      await testERC20.mint(predictAddr151, TWO_ETH)
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [erc20Receiver.address, ONE_ETH]))
+
+      const newNonce = BigNumber.from(1)
+      const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA, true, mergedKeyIndex)
+
+      // run createAccountWithInvoke2
+      const before = await testERC20.balanceOf(predictAddr151)
+      const beforeRecevive = await testERC20.balanceOf(erc20Receiver.address)
+
+      const tx = await factoryCreateAccountRole.createAccountWithInvoke2(
+        await authorizedEOA.getAddress(),
+        await cosignerEOA.getAddress(),
+        await recoverEOA.getAddress(),
+        newSalt,
+        pxIndexWithParity,
+        px,
+        { nonce: newNonce, data: erc20TransferData, signature: sign }
+      )
+
+      expect(await testERC20.balanceOf(predictAddr151)).to.equal(before.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(erc20Receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
+
+      const receipt = await tx.wait()
+      if (ShowGasUsage) {
+        console.log('createAccountWithInvoke2 gasUsed use Schnorr', receipt.gasUsed.toString())
+      }
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
