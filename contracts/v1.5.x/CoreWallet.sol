@@ -695,8 +695,10 @@ contract CoreWallet is IERC1271 {
 
         // set nonce
         nonce = _nonce;
+
         // call internal function
         internalInvoke(operationHash, _data);
+
         // always revert
         revert ExecutionResult(true);
     }
