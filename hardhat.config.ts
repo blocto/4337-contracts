@@ -40,7 +40,8 @@ const config: HardhatUserConfig = {
       }
     }],
     overrides: {
-      'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings
+      'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings,
+      'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
     }
   },
   networks: {
@@ -111,6 +112,11 @@ const config: HardhatUserConfig = {
       url: 'https://sepolia-rpc.scroll.io',
       accounts: getDeployAccount(),
       chainId: 534351
+    },
+    taiko_testnet: {
+      url: 'https://rpc.test.taiko.xyz',
+      accounts: getDeployAccount(),
+      chainId: 167005
     }
   },
   mocha: {
