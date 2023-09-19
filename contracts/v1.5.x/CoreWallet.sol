@@ -675,16 +675,29 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, _data);
     }
 
-    /// @notice simulate internalInvoke result off-chain
+    /// @notice simulate invoke2 result off-chain
     /// @dev this function will revert always
     /// @param _nonce the nonce value for the signature
     /// @param _data The data containing the transactions to be invoked; see internalInvoke for details.
-    function simulateInvoke(uint256 _nonce, bytes calldata _data) external {
-        // check nonce
-        require(_nonce > nonce && (_nonce < (nonce + 10)), "must use valid nonce");
-        // test internalInvoke
-        internalInvoke(bytes32(0), _data);
+    /// @param _signature Signature byte array associated with `_nonce, _data`
+    function simulateInvoke2(uint256 _nonce, bytes calldata _data, bytes calldata _signature) external {
+        // calculate hash
+        bytes32 operationHash =
+            keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _nonce, _data));
 
+        // valid signature
+        bytes4 result = _isValidSignature(operationHash, _signature);
+        // always pass
+        require(result >= 0, "invalid signature");
+
+        // check nonce
+        require(_nonce > nonce && (_nonce < type(uint256).max), "must use valid nonce");
+
+        // set nonce
+        nonce = _nonce;
+        // call internal function
+        internalInvoke(operationHash, _data);
+        // always revert
         revert ExecutionResult(true);
     }
 

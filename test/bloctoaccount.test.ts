@@ -614,32 +614,29 @@ describe('BloctoAccount Upgrade Test', function () {
 
       const newNonce = (await account.nonce()).add(1)
 
-      // const ret2 = await account.callStatic.simulateInvoke(
-      //   newNonce, erc20TransferData
-      // ).catch(e => e)
-      // console.log(ret2)
-
-      const ret = await account.callStatic.simulateInvoke(
-        newNonce, erc20TransferData
+      const ret = await account.callStatic.simulateInvoke2(
+        newNonce, erc20TransferData, new Uint8Array(65)
       ).catch(e => e.errorArgs)
       expect(ret.targetSuccess).to.be.true
     })
 
-    it('should revert if nonce too big with simulateInvoke2', async () => {
-      const account = await testCreateAccount(567)
+    it('should revert when send erc20 with simulateInvoke2 use fake schnorr', async () => {
+      const account = await testCreateAccount(624)
       const receiver = createTmpAccount()
       await testERC20.mint(account.address, TWO_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
 
-      const newNonce = (await account.nonce()).add(10000)
+      const newNonce = (await account.nonce()).add(1)
 
-      await expect(
-        account.callStatic.simulateInvoke(
-          newNonce, erc20TransferData
-        )
-      ).to.revertedWith('must use valid nonce')
+      const fakeSchnorrSign = '2'.repeat(128) + '80'
+      const schnorrAry = Uint8Array.from(Buffer.from(fakeSchnorrSign, 'hex')) // Buffer.from(fakeSchnorrSign, 'hex')
+
+      const ret = await account.callStatic.simulateInvoke2(
+        newNonce, erc20TransferData, schnorrAry
+      ).catch(e => e.errorArgs)
+      expect(ret.targetSuccess).to.be.true
     })
   })
 
