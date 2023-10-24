@@ -15,7 +15,14 @@
     "deploy-verifyingPaymaster": "hardhat run deploy/2_deploy_VerifyingPaymaster.ts",
     "deploy-upgrade": "hardhat run deploy/upgrade/0_upgrade.ts",
     "deploy_verify": "hardhat run deploy/4_verify.ts",
-    "deploy_verify_paymaster": "hardhat run deploy/1_deploy_VerifyingPaymaster.ts"
+    "deploy_verify_paymaster": "hardhat run deploy/1_deploy_VerifyingPaymaster.ts",
+    "gas_exp_0": "hardhat run scripts/0_deploy_create3Factory.ts --network goerli",
+    "gas_exp_1": "hardhat run scripts/1_deploy_account_accountFactory.ts --network goerli",
+    "gas_exp_2": "hardhat run scripts/2_set_impl.ts --network goerli",
+    "gas_exp_3": "hardhat run scripts/3_deploy_wallets.ts --network goerli",
+    "gas_exp_4": "hardhat run scripts/4_fund_wallets.ts --network goerli",
+    "gas_exp_5": "hardhat run scripts/5_deploy_multicall.ts --network goerli",
+    "gas_exp_6": "hardhat run scripts/6_swc_transfer_exp.ts --network goerli"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",
