@@ -14,10 +14,6 @@ const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 const BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
 
-// for replica_test/
-// const Create3FactoryAddress = '0x0659706013c5084c085E9B601D06De16BAFaAAfD'
-// const BloctoAccountFactoryAddr = '0x0D98dc00DaccA2d2b4f7b356Eef42601E2091cFa'
-
 async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
   console.log('upgrade with owner:', owner.address)
@@ -43,13 +39,13 @@ async function main (): Promise<void> {
   const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
   const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
   console.log('Proxy imported from:', deployment.address)
-  const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'always' })
-  await factory.setImplementation_1_5_1(implementation)
+  // const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'never' })
+  // await factory.setImplementation_1_5_1(implementation)
 
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: implementation,
-    contract: 'contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
+    contract: 'contracts/v1.5.x/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
       EntryPoint
     ]
@@ -59,7 +55,7 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 }
 

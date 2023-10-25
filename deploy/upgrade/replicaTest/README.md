@@ -16,7 +16,7 @@ yarn deploy-create3Factory --network mumbai
 3. 
 NOTE: it's v140 contract: BloctoAccountFactoryV140, BloctoAccountCloneableWalletV140__factory
 ```
-npx hardhat run deploy/upgrade/replica_test/1_0_V140_deploy_account_accountFactory.ts --network mumbai
+npx hardhat run deploy/upgrade/replicaTest/1_0_V140_deploy_account_accountFactory.ts --network mumbai
 ```
 
 Get the BloctoAccountFactoryAddr for next step

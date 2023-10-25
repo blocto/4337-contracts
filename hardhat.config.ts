@@ -40,6 +40,8 @@ const config: HardhatUserConfig = {
       }
     }],
     overrides: {
+      'contracts/test/TestBloctoAccountV200.sol': optimizedComilerSettings,
+      'contracts/test/TestBloctoAccountCloneableWalletV200.sol': optimizedComilerSettings,
       'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings,
       'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
     }
@@ -94,7 +96,7 @@ const config: HardhatUserConfig = {
       chainId: 421613
     },
     mumbai: {
-      url: 'https://polygon-mumbai.gateway.tenderly.co',
+      url: 'https://rpc.ankr.com/polygon_mumbai',
       accounts: getDeployAccount(),
       chainId: 80001
     },
