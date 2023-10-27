@@ -1,7 +1,7 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import hre, { ethers } from 'hardhat'
 
-const BloctoAccountCloneableWalletAddr = '0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E'
+const BloctoAccountCloneableWalletAddr = '0xEcD85B3b9C8470b0AfB64A62d61e22Ba2A51584b'
 const BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
 const VerifingPaymasterAddr = '0xa312d8D37Be746BD09cBD9e9ba2ef16bc7Da48FF'
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
@@ -13,7 +13,7 @@ async function main (): Promise<void> {
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: BloctoAccountCloneableWalletAddr,
-    contract: 'contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
+    contract: 'contracts/v1.5.x/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
       EntryPoint
     ]
@@ -23,7 +23,7 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 
   //  erify VerifyingPaymaster Contract

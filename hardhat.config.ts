@@ -21,6 +21,14 @@ function getDeployAccount (): string[] {
   return (process.env.ETH_PRIVATE_KEY !== undefined) ? [process.env.ETH_PRIVATE_KEY] : []
 }
 
+const optimizedComilerSettings = {
+  version: '0.8.17',
+  settings: {
+    optimizer: { enabled: true, runs: 1000000 },
+    viaIR: true
+  }
+}
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 const config: HardhatUserConfig = {
@@ -30,7 +38,13 @@ const config: HardhatUserConfig = {
       settings: {
         optimizer: { enabled: true, runs: 1000000 }
       }
-    }]
+    }],
+    overrides: {
+      'contracts/test/TestBloctoAccountV200.sol': optimizedComilerSettings,
+      'contracts/test/TestBloctoAccountCloneableWalletV200.sol': optimizedComilerSettings,
+      'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings,
+      'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
+    }
   },
   networks: {
     hardhat: {
@@ -82,7 +96,7 @@ const config: HardhatUserConfig = {
       chainId: 421613
     },
     mumbai: {
-      url: 'https://polygon-mumbai.gateway.tenderly.co',
+      url: 'https://rpc.ankr.com/polygon_mumbai',
       accounts: getDeployAccount(),
       chainId: 80001
     },
@@ -95,6 +109,16 @@ const config: HardhatUserConfig = {
       url: 'https://api.avax-test.network/ext/bc/C/rpc',
       accounts: getDeployAccount(),
       chainId: 43113
+    },
+    scroll_testnet: {
+      url: 'https://sepolia-rpc.scroll.io',
+      accounts: getDeployAccount(),
+      chainId: 534351
+    },
+    taiko_testnet: {
+      url: 'https://rpc.test.taiko.xyz',
+      accounts: getDeployAccount(),
+      chainId: 167005
     }
   },
   mocha: {

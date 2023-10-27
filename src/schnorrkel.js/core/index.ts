@@ -16,7 +16,7 @@ const ec = new EC('secp256k1')
 const generatorPoint = ec.g
 
 export const _generateL = (publicKeys: Uint8Array[]) => {
-  return ethers.utils.keccak256(_concatTypedArrays(publicKeys.sort()))
+  return ethers.utils.keccak256(_concatTypedArrays(publicKeys.sort(Buffer.compare)))
 }
 
 export const _concatTypedArrays = (publicKeys: Uint8Array[]): Uint8Array => {
