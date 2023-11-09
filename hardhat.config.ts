@@ -14,7 +14,8 @@ const {
   BSCSCAN_API_KEY, // bscscan API KEY
   SNOWTRACE_API_KEY, // avalanche scan (snowtrace) API KEY
   ARBSCAN_API_KEY, // arbitrum scan API KEY
-  OP_API_KEY
+  OP_API_KEY, // optimistic scan API KEY
+  BASESCAN_API_KEY // base scan API KEY
 } = process.env
 
 function getDeployAccount (): string[] {
@@ -25,7 +26,7 @@ const optimizedComilerSettings = {
   version: '0.8.17',
   settings: {
     optimizer: { enabled: true, runs: 1000000 },
-    viaIR: true
+    viaIR: false
   }
 }
 
@@ -50,6 +51,10 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: true
     },
+    localhost: {
+      allowUnlimitedContractSize: true,
+      url: 'http://localhost:8545'
+    },
     ethereum: {
       url: ETHEREUM_URL,
       accounts: getDeployAccount(),
@@ -66,7 +71,7 @@ const config: HardhatUserConfig = {
       chainId: 137
     },
     avalanche: {
-      url: 'https://api.avax.network/ext/bc/C/rpc',
+      url: 'https://avalanche.blockpi.network/v1/rpc/public',
       accounts: getDeployAccount(),
       chainId: 43114
     },
@@ -119,6 +124,11 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.test.taiko.xyz',
       accounts: getDeployAccount(),
       chainId: 167005
+    },
+    base_goerli: {
+      url: 'https://goerli.base.org',
+      accounts: getDeployAccount(),
+      chainId: 84531
     }
   },
   mocha: {
@@ -138,8 +148,28 @@ const config: HardhatUserConfig = {
       arbitrumOne: ARBSCAN_API_KEY,
       arbitrumGoerli: ARBSCAN_API_KEY,
       optimisticEthereum: OP_API_KEY,
-      optimisticGoerli: OP_API_KEY
-    }
+      optimisticGoerli: OP_API_KEY,
+      baseGoerli: BASESCAN_API_KEY,
+      base: BASESCAN_API_KEY
+    },
+    customChains: [
+      {
+        network: 'baseGoerli',
+        chainId: 84531,
+        urls: {
+          apiURL: 'https://api-goerli.basescan.org/api',
+          browserURL: 'https://goerli.basescan.org'
+        }
+      },
+      {
+        network: 'base',
+        chainId: 8453,
+        urls: {
+          apiURL: 'https://api.basescan.org/api',
+          browserURL: 'https://basescan.org/'
+        }
+      }
+    ]
   }
 
 }
