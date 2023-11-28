@@ -15,7 +15,8 @@ const {
   SNOWTRACE_API_KEY, // avalanche scan (snowtrace) API KEY
   ARBSCAN_API_KEY, // arbitrum scan API KEY
   OP_API_KEY, // optimistic scan API KEY
-  BASESCAN_API_KEY // base scan API KEY
+  BASESCAN_API_KEY, // base scan API KEY
+  LINEASCAN_API_KEY // base scan API KEY
 } = process.env
 
 function getDeployAccount (): string[] {
@@ -47,13 +48,14 @@ const config: HardhatUserConfig = {
       'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
     }
   },
+  sourcify: {
+    // Disabled by default
+    // Doesn't need an API key
+    enabled: true
+  },
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
-    },
-    localhost: {
-      allowUnlimitedContractSize: true,
-      url: 'http://localhost:8545'
     },
     ethereum: {
       url: ETHEREUM_URL,
@@ -85,10 +87,25 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 42161
     },
+    linea: {
+      url: 'https://rpc.linea.build',
+      accounts: getDeployAccount(),
+      chainId: 59144
+    },
+    zora: {
+      url: 'https://bridge.zora.energy/',
+      accounts: getDeployAccount(),
+      chainId: 7777777
+    },
     goerli: {
       url: 'https://ethereum-goerli.publicnode.com',
       accounts: getDeployAccount(),
       chainId: 5
+    },
+    sepolia: {
+      url: 'https://1rpc.io/sepolia',
+      accounts: getDeployAccount(),
+      chainId: 11155111
     },
     optimism_testnet: {
       url: 'https://goerli.optimism.io',
@@ -129,6 +146,21 @@ const config: HardhatUserConfig = {
       url: 'https://goerli.base.org',
       accounts: getDeployAccount(),
       chainId: 84531
+    },
+    linea_goerli: {
+      url: 'https://rpc.goerli.linea.build',
+      accounts: getDeployAccount(),
+      chainId: 59140
+    },
+    zircuit_sepolia: {
+      url: 'https://zircuit1.p2pify.com/',
+      accounts: getDeployAccount(),
+      chainId: 48899
+    },
+    zora_goerli: {
+      url: 'https://testnet.rpc.zora.co',
+      accounts: getDeployAccount(),
+      chainId: 999
     }
   },
   mocha: {
@@ -145,12 +177,16 @@ const config: HardhatUserConfig = {
       avalanche: SNOWTRACE_API_KEY,
       avalancheFujiTestnet: SNOWTRACE_API_KEY,
       goerli: ETHERSCAN_API_KEY,
+      sepolia: ETHERSCAN_API_KEY,
       arbitrumOne: ARBSCAN_API_KEY,
       arbitrumGoerli: ARBSCAN_API_KEY,
       optimisticEthereum: OP_API_KEY,
       optimisticGoerli: OP_API_KEY,
       baseGoerli: BASESCAN_API_KEY,
-      base: BASESCAN_API_KEY
+      base: BASESCAN_API_KEY,
+      lineaGoerli: LINEASCAN_API_KEY,
+      zoraGoerli: LINEASCAN_API_KEY,
+      zora: LINEASCAN_API_KEY
     },
     customChains: [
       {
@@ -167,6 +203,38 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://api.basescan.org/api',
           browserURL: 'https://basescan.org/'
+        }
+      },
+      {
+        network: 'lineaGoerli',
+        chainId: 59140,
+        urls: {
+          apiURL: 'https://api-testnet.lineascan.build/api',
+          browserURL: 'https://goerli.lineascan.build/'
+        }
+      },
+      {
+        network: 'base',
+        chainId: 59144,
+        urls: {
+          apiURL: 'https://api.lineascan.build/api.',
+          browserURL: 'https://lineascan.build/'
+        }
+      },
+      {
+        network: 'zoraGoerli',
+        chainId: 999,
+        urls: {
+          apiURL: 'https://testnet.explorer.zora.energy/api',
+          browserURL: 'https://testnet.explorer.zora.energy/'
+        }
+      },
+      {
+        network: 'zora',
+        chainId: 7777777,
+        urls: {
+          apiURL: 'https://explorer.zora.energy/api',
+          browserURL: 'https://explorer.zora.energy/'
         }
       }
     ]

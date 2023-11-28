@@ -2,7 +2,8 @@
 import hre, { ethers } from 'hardhat'
 import {
   CREATE3Factory__factory,
-  BloctoAccountCloneableWallet__factory
+  BloctoAccountCloneableWallet__factory,
+  BloctoAccountFactory__factory
 } from '../../typechain'
 import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
@@ -36,12 +37,13 @@ async function main (): Promise<void> {
   }
 
   // deploy BloctoAccountFactory to next version
-  const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-  const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
-  console.log('Proxy imported from:', deployment.address)
-  // const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'never' })
-  // await factory.setImplementation_1_5_1(implementation)
-
+  // const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+  // const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
+  // console.log('Proxy imported from:', deployment.address)
+  // // const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'never' })
+  const factory = BloctoAccountFactory__factory.connect(BloctoAccountFactoryAddr, owner)
+  await factory.setImplementation_1_5_1(implementation)
+  console.log('setImplementation_1_5_1 done')
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: implementation,
