@@ -48,11 +48,6 @@ const config: HardhatUserConfig = {
       'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
     }
   },
-  sourcify: {
-    // Disabled by default
-    // Doesn't need an API key
-    enabled: true
-  },
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
