@@ -16,7 +16,7 @@ const {
   ARBSCAN_API_KEY, // arbitrum scan API KEY
   OP_API_KEY, // optimistic scan API KEY
   BASESCAN_API_KEY, // base scan API KEY
-  LINEASCAN_API_KEY // base scan API KEY
+  LINEASCAN_API_KEY // linea scan API KEY
 } = process.env
 
 function getDeployAccount (): string[] {
