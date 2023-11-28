@@ -209,10 +209,10 @@ const config: HardhatUserConfig = {
         }
       },
       {
-        network: 'base',
+        network: 'linea',
         chainId: 59144,
         urls: {
-          apiURL: 'https://api.lineascan.build/api.',
+          apiURL: 'https://api.lineascan.build/api',
           browserURL: 'https://lineascan.build/'
         }
       },
