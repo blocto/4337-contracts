@@ -615,43 +615,6 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, data);
     }
 
-    /// @notice A version of `invoke()` that has one explicit signature which is used to derive the cosigning
-    ///  address. Uses `msg.sender` as the authorized address.
-    /// @param v the v value for the signature; see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    /// @param r the r value for the signature
-    /// @param s the s value for the signature
-    /// @param data The data containing the transactions to be invoked; see internalInvoke for details.
-    function invoke1SignerSends(uint8 v, bytes32 r, bytes32 s, bytes calldata data) external {
-        // check signature version
-        // `ecrecover` will in fact return 0 if given invalid
-        // so perhaps this check is redundant
-        require(v == 27 || v == 28, "invalid signature version");
-        require(s <= S_MAX, "s of signature is too large");
-
-        // calculate hash
-        bytes32 operationHash = keccak256(
-            abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, nonce, msg.sender, data)
-        );
-
-        // recover cosigner
-        address cosigner = ecrecover(operationHash, v, r, s);
-
-        // check for valid signature
-        require(cosigner != address(0), "invalid signature");
-
-        // Get required cosigner
-        address requiredCosigner = address(uint160(authorizations[authVersion + uint256(uint160(msg.sender))]));
-
-        // The operation should be approved if the signer address has no cosigner (i.e. signer == cosigner) or
-        // if the actual cosigner matches the required cosigner.
-        require(requiredCosigner == cosigner || requiredCosigner == msg.sender, "invalid authorization");
-
-        // increment nonce to prevent replay attacks
-        nonce++;
-
-        internalInvoke(operationHash, data);
-    }
-
     /// @notice A version of `invoke()` that use isValidSignature to check the authorization of signers
     /// @param _nonce the nonce value for the signature
     /// @param _data The data containing the transactions to be invoked; see internalInvoke for details.
