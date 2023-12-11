@@ -16,7 +16,9 @@ const {
   ARBSCAN_API_KEY, // arbitrum scan API KEY
   OP_API_KEY, // optimistic scan API KEY
   BASESCAN_API_KEY, // base scan API KEY
-  LINEASCAN_API_KEY // linea scan API KEY
+  LINEASCAN_API_KEY, // linea scan API KEY
+  BASE_SEPOLIA_API_KEY, // base sepolia scan API KEY
+  SCROLLSCAN_API_KEY // scroll scan API KEY
 } = process.env
 
 function getDeployAccount (): string[] {
@@ -102,18 +104,28 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 11155111
     },
-    optimism_testnet: {
+    optimism_goerli: {
       url: 'https://goerli.optimism.io',
       accounts: getDeployAccount(),
       chainId: 420
     },
-    arbitrum_testnet: {
-      url: 'https://arbitrum-goerli.publicnode.com',
+    optimism_sepolia: {
+      url: 'https://sepolia.optimism.io',
+      accounts: getDeployAccount(),
+      chainId: 11155420
+    },
+    arbitrum_goerli: {
+      url: 'https://rpc.goerli.arbitrum.gateway.fm',
       accounts: getDeployAccount(),
       chainId: 421613
     },
+    arbitrum_sepolia: {
+      url: 'https://sepolia-rollup.arbitrum.io/rpc',
+      accounts: getDeployAccount(),
+      chainId: 421614
+    },
     mumbai: {
-      url: 'https://rpc.ankr.com/polygon_mumbai',
+      url: 'https://polygon-mumbai-bor.publicnode.com',
       accounts: getDeployAccount(),
       chainId: 80001
     },
@@ -127,7 +139,7 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 43113
     },
-    scroll_testnet: {
+    scroll_sepolia: {
       url: 'https://sepolia-rpc.scroll.io',
       accounts: getDeployAccount(),
       chainId: 534351
@@ -141,6 +153,11 @@ const config: HardhatUserConfig = {
       url: 'https://goerli.base.org',
       accounts: getDeployAccount(),
       chainId: 84531
+    },
+    base_sepolia: {
+      url: 'https://sepolia.base.org',
+      accounts: getDeployAccount(),
+      chainId: 84532
     },
     linea_goerli: {
       url: 'https://rpc.goerli.linea.build',
@@ -156,6 +173,16 @@ const config: HardhatUserConfig = {
       url: 'https://testnet.rpc.zora.co',
       accounts: getDeployAccount(),
       chainId: 999
+    },
+    zora_sepolia: {
+      url: 'https://sepolia.rpc.zora.energy',
+      accounts: getDeployAccount(),
+      chainId: 999999999
+    },
+    astar_zkevm_sepolia: {
+      url: 'https://rpc.startale.com/zkatana',
+      accounts: getDeployAccount(),
+      chainId: 1261120
     }
   },
   mocha: {
@@ -175,13 +202,19 @@ const config: HardhatUserConfig = {
       sepolia: ETHERSCAN_API_KEY,
       arbitrumOne: ARBSCAN_API_KEY,
       arbitrumGoerli: ARBSCAN_API_KEY,
+      arbitrumSepolia: ARBSCAN_API_KEY,
       optimisticEthereum: OP_API_KEY,
       optimisticGoerli: OP_API_KEY,
-      baseGoerli: BASESCAN_API_KEY,
+      optimisticSepolia: OP_API_KEY,
       base: BASESCAN_API_KEY,
+      baseGoerli: BASESCAN_API_KEY,
+      baseSepolia: BASE_SEPOLIA_API_KEY,
       lineaGoerli: LINEASCAN_API_KEY,
+      zora: LINEASCAN_API_KEY,
       zoraGoerli: LINEASCAN_API_KEY,
-      zora: LINEASCAN_API_KEY
+      zoraSepolia: LINEASCAN_API_KEY,
+      scrollSepolia: SCROLLSCAN_API_KEY,
+      astarZkevmSepolia: SCROLLSCAN_API_KEY
     },
     customChains: [
       {
@@ -217,6 +250,14 @@ const config: HardhatUserConfig = {
         }
       },
       {
+        network: 'zora',
+        chainId: 7777777,
+        urls: {
+          apiURL: 'https://explorer.zora.energy/api',
+          browserURL: 'https://explorer.zora.energy/'
+        }
+      },
+      {
         network: 'zoraGoerli',
         chainId: 999,
         urls: {
@@ -225,11 +266,51 @@ const config: HardhatUserConfig = {
         }
       },
       {
-        network: 'zora',
-        chainId: 7777777,
+        network: 'zoraSepolia',
+        chainId: 999999999,
         urls: {
-          apiURL: 'https://explorer.zora.energy/api',
-          browserURL: 'https://explorer.zora.energy/'
+          apiURL: 'https://sepolia.explorer.zora.energy/api',
+          browserURL: 'https://sepolia.explorer.zora.energy/'
+        }
+      },
+      {
+        network: 'arbitrumSepolia',
+        chainId: 421614,
+        urls: {
+          apiURL: 'https://api-sepolia.arbiscan.io/api',
+          browserURL: 'https://sepolia.arbiscan.io/'
+        }
+      },
+      {
+        network: 'optimisticSepolia',
+        chainId: 11155420,
+        urls: {
+          apiURL: 'https://api-sepolia-optimism.etherscan.io/api',
+          browserURL: 'https://sepolia-optimism.etherscan.io/'
+        }
+      },
+      {
+        network: 'baseSepolia',
+        chainId: 84532,
+        urls: {
+          apiURL: 'https://base-sepolia.blockscout.com/api',
+          browserURL: 'https://base-sepolia.blockscout.com/'
+        }
+      },
+      {
+        network: 'scrollSepolia',
+        chainId: 534351,
+        urls: {
+          apiURL: 'https://api-sepolia.scrollscan.com/api',
+          browserURL: 'https://sepolia.scrollscan.dev/'
+        }
+      },
+      {
+        network: 'astarZkevmSepolia',
+        chainId: 1261120,
+        urls: {
+          apiURL: 'https://zkatana.blockscout.com/api',
+          browserURL: 'https://zkatana.blockscout.com/'
         }
       }
     ]
