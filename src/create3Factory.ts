@@ -4,8 +4,9 @@ import {
 } from '../typechain'
 
 import { ContractFactory, Signer } from 'ethers'
+import { ethers } from 'hardhat'
 
-// const GasLimit = 800000
+const Create3FactoryAddr = '0xd6CA621705575c3c23622b0802964a556870953b'
 
 export const getDeployCode = (
   contractFactory: ContractFactory,
@@ -15,8 +16,10 @@ export const getDeployCode = (
 
 // remove gaslimit for arbitrum
 export async function deployCREATE3Factory (signer: Signer): Promise<CREATE3Factory> {
-  return (await new CREATE3Factory__factory(signer).deploy())
-  // return (await new CREATE3Factory__factory(signer).deploy({
-  //   gasLimit: GasLimit
-  // }))
+  if ((await ethers.provider.getCode(Create3FactoryAddr)) !== '0x') {
+    console.log(`Using Existed Create3FactoryAddr (${Create3FactoryAddr})!`)
+    return CREATE3Factory__factory.connect(Create3FactoryAddr, signer)
+  } else {
+    return (await new CREATE3Factory__factory(signer).deploy())
+  }
 }
