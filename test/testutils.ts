@@ -59,7 +59,9 @@ export async function fund (contractOrAddress: string | Contract, amountEth = '0
   if (oriBalance.gt(parseEther(amountEth))) {
     return
   }
-  await ethers.provider.getSigner().sendTransaction({ to: address, value: parseEther(amountEth) })
+  console.log(`funding ${address} 'with ${amountEth} eth...`)
+  const tx = await ethers.provider.getSigner().sendTransaction({ to: address, value: parseEther(amountEth) })
+  await tx.wait()
 }
 
 export async function getBalance (address: string): Promise<number> {
@@ -192,8 +194,6 @@ export function decodeRevertReason (data: string, nullIfNoMatch = true): string 
   return null
 }
 
-let currentNode: string = ''
-
 // basic geth support
 // - by default, has a single account. our code needs more.
 export async function checkForGeth (): Promise<void> {
@@ -309,14 +309,13 @@ export async function createAccountV151 (
     ethers.utils.hexZeroPad(salt.toHexString(), 32),
     cosignerAddresses, recoverAddresses
   ]))
+  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const tx = await accountFactory.createAccount_1_5_1(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
-  // console.log('tx: ', tx)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {
     console.log('createAccount 151 gasUsed: ', receipt.gasUsed)
   }
 
-  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account
 }

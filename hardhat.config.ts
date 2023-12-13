@@ -186,7 +186,7 @@ const config: HardhatUserConfig = {
     }
   },
   mocha: {
-    timeout: 10000
+    timeout: 30000
   },
   // check from: npx hardhat verify --list-networks
   etherscan: {
