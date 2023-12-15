@@ -280,13 +280,8 @@ describe('BloctoAccount Upgrade Test', function () {
     it('should send ERC20 token', async () => {
       // prepare
       this.timeout(30000)
-      console.log('292')
       const sendAccount = account
       const receiveAccount = createTmpAccount(4)
-      console.log('295')
-      console.log('testERC20.address: ', testERC20.address)
-      // console.log('testERC20.codesize: ', await ethers.provider.getCode(testERC20.address))
-      console.log('sendAccount.address: ', sendAccount.address)
       let before = await testERC20.balanceOf(sendAccount.address)
       if (before.lt(TWO_ETH)) {
         console.log(`mint 2 testERC20 to ${sendAccount.address}`)
@@ -676,11 +671,9 @@ describe('BloctoAccount Upgrade Test', function () {
       )
 
       const receipt = await tx.wait()
-      console.log('after tx wait')
       expect(await testERC20.balanceOf(predictAddr151)).to.equal(before.sub(ONE_ETH))
       expect(await testERC20.balanceOf(erc20Receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
 
-      console.log('after receipt')
       if (ShowGasUsage) {
         console.log('createAccountWithInvoke2 gasUsed', receipt.gasUsed.toString())
       }
