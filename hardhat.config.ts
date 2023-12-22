@@ -149,6 +149,11 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 167005
     },
+    taiko_jolnir_sepolia: {
+      url: 'https://rpc.jolnir.taiko.xyz',
+      accounts: getDeployAccount(),
+      chainId: 167007
+    },
     base_goerli: {
       url: 'https://goerli.base.org',
       accounts: getDeployAccount(),
@@ -186,7 +191,7 @@ const config: HardhatUserConfig = {
     }
   },
   mocha: {
-    timeout: 30000
+    timeout: 90000
   },
   // check from: npx hardhat verify --list-networks
   etherscan: {
@@ -214,7 +219,8 @@ const config: HardhatUserConfig = {
       zoraGoerli: LINEASCAN_API_KEY,
       zoraSepolia: LINEASCAN_API_KEY,
       scrollSepolia: SCROLLSCAN_API_KEY,
-      astarZkevmSepolia: SCROLLSCAN_API_KEY
+      astarZkevmSepolia: SCROLLSCAN_API_KEY,
+      taikoJolnirSepolia: SCROLLSCAN_API_KEY
     },
     customChains: [
       {
@@ -311,6 +317,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://zkatana.blockscout.com/api',
           browserURL: 'https://zkatana.blockscout.com/'
+        }
+      },
+      {
+        network: 'taikoJolnirSepolia',
+        chainId: 167007,
+        urls: {
+          apiURL: 'https://explorer.jolnir.taiko.xyz/api',
+          browserURL: 'https://explorer.jolnir.taiko.xyz/'
         }
       }
     ]

@@ -3,14 +3,10 @@ import { Wallet, BigNumber, ContractTransaction } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccount,
-  BloctoAccountV140,
   BloctoAccount__factory,
   BloctoAccountV140__factory,
   BloctoAccountCloneableWallet__factory,
-  BloctoAccountCloneableWalletV140__factory,
   CREATE3Factory,
-  TestBloctoAccountCloneableWalletV200,
-  TestBloctoAccountCloneableWalletV200__factory,
   TestERC20,
   TestERC20__factory,
   BloctoAccountFactory__factory,
@@ -26,14 +22,12 @@ import {
   deployEntryPoint,
   ONE_ETH,
   TWO_ETH,
-  FIVE_ETH,
   createAuthorizedCosignerRecoverWallet,
   createAuthorizedCosignerRecoverWallet2,
   txData,
   signMessage,
   getMergedKey,
   signMessageWithoutChainId,
-  rethrow,
   signForInovke2,
   get151SaltFromAddress
 } from './testutils'
@@ -41,17 +35,16 @@ import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad, concat } from '@ethersproject/bytes'
 import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
-import { fillSignWithEIP191V0 } from './entrypoint/UserOp'
 import { zeroAddress } from 'ethereumjs-util'
 import { parseEther, keccak256 } from 'ethers/lib/utils'
 
 const ShowGasUsage = false
 
 function randNumber (): number {
-  return Math.floor(Math.random() * 10 ^ 50)
+  return Math.floor(Math.random() * (1000000000000000))
 }
 
-describe('BloctoAccount Upgrade Test', function () {
+describe('BloctoAccount Test', function () {
   const ethersSigner = ethers.provider.getSigner()
 
   let authorizedWallet: Wallet
@@ -59,7 +52,6 @@ describe('BloctoAccount Upgrade Test', function () {
   let recoverWallet: Wallet
 
   let implementation: string
-  let implementationNextVersion: string
   let factory: BloctoAccountFactory
 
   let entryPoint: EntryPoint
@@ -122,28 +114,6 @@ describe('BloctoAccount Upgrade Test', function () {
     return account
   }
 
-  // use authorizedWallet and cosignerWallet to upgrade wallet
-  // withChainId(true) -> for after v1.5.0 , else(false) -> for beforfe v1.4.0
-  async function upgradeAccountToNewVersion (account: BloctoAccount, newImplementationAddr: string, withChainId: boolean = true): Promise<void> {
-    // const accountV140 = account as BloctoAccountV140
-    // const originalNonce = withChainId ? (await account.nonce()) : (await account.nonces(authorizedWallet.address))
-    let newNonce: BigNumber
-    if (withChainId) {
-      account = account as BloctoAccount
-      newNonce = (await account.nonce()).add(1)
-    } else {
-      const accountV140 = await BloctoAccountV140__factory.connect(account.address, cosignerWallet)
-      newNonce = (await accountV140.nonces(authorizedWallet.address)).add(1)
-    }
-
-    const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
-    const upgradeToData = txData(1, account.address, BigNumber.from(0),
-      account.interface.encodeFunctionData('upgradeTo', [newImplementationAddr]))
-
-    const sign = withChainId ? await signMessage(authorizedWallet, account.address, newNonce, upgradeToData) : await signMessageWithoutChainId(authorizedWallet, account.address, newNonce, upgradeToData)
-    await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet.address, upgradeToData)
-  }
-
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
   async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
@@ -164,6 +134,17 @@ describe('BloctoAccount Upgrade Test', function () {
     return await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
   }
 
+  async function mint1000testERC20 (target: string, leastAmount: BigNumber): Promise<BigNumber> {
+    const before = await testERC20.balanceOf(target)
+    if (before.lt(leastAmount)) {
+      console.log(`mint 1000 testERC20 to ${target}`)
+      const mintWait = await testERC20.mint(target, parseEther('1000'))
+      await mintWait.wait()
+      return await before.add(parseEther('1000'))
+    }
+    return before
+  }
+
   before(async function () {
     this.timeout(90000)
     console.log('test with signer: ', await ethersSigner.getAddress());
@@ -178,7 +159,6 @@ describe('BloctoAccount Upgrade Test', function () {
 
     const accountSalt = hexZeroPad(Buffer.from('BloctoAccount', 'utf-8'), 32)
     implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
-    implementationNextVersion = implementation
 
     if ((await ethers.provider.getCode(implementation)) !== '0x') {
       console.log(`Using Existed BloctoAccountCloneableWallet (${implementation})!`)
@@ -266,29 +246,23 @@ describe('BloctoAccount Upgrade Test', function () {
       const beforeRecevive = await ethers.provider.getBalance(account.address)
       const [owner] = await ethers.getSigners()
 
-      console.log(`send 0.1 eth to blocto account(${account.address})`)
+      console.log(`send 0.01 eth to blocto account(${account.address})`)
       const tx = await owner.sendTransaction({
         to: account.address,
-        value: parseEther('0.1') // Sends exactly 1.0 ether
+        value: parseEther('0.01') // Sends exactly 1.0 ether
       })
       const receipt = await tx.wait()
       const receivedSelector = ethers.utils.id('Received(address,uint256)')
       expect(receipt.logs[0].topics[0]).to.equal(receivedSelector)
-      expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(parseEther('0.1')))
+      expect(await ethers.provider.getBalance(account.address)).to.equal(beforeRecevive.add(parseEther('0.01')))
     })
 
     it('should send ERC20 token', async () => {
       // prepare
-      this.timeout(30000)
+      this.timeout(60000)
       const sendAccount = account
       const receiveAccount = createTmpAccount(4)
-      let before = await testERC20.balanceOf(sendAccount.address)
-      if (before.lt(TWO_ETH)) {
-        console.log(`mint 2 testERC20 to ${sendAccount.address}`)
-        const mintWait = await testERC20.mint(sendAccount.address, parseEther('1000'))
-        await mintWait.wait()
-        before = before.add(TWO_ETH)
-      }
+      const before = await mint1000testERC20(account.address, ONE_ETH)
 
       // test send ERC20
       const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
@@ -305,7 +279,7 @@ describe('BloctoAccount Upgrade Test', function () {
     })
 
     it('should send native token', async () => {
-      const amountEthStr = '0.1'
+      const amountEthStr = '0.01'
       // prepare
       const sendAccount = account
       const receiveAccount = createTmpAccount(6)
@@ -331,7 +305,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert if invalid data length', async () => {
       // prepare
-      await testERC20.mint(account.address, TWO_ETH)
+      await mint1000testERC20(account.address, ONE_ETH)
       const receiveAccount = createTmpAccount(6)
       const authorizeInAccountNonce = (await account.nonce()).add(1)
       const accountLinkCosigner = BloctoAccount__factory.connect(account.address, cosignerWallet)
@@ -349,12 +323,7 @@ describe('BloctoAccount Upgrade Test', function () {
     it('should send erc20 with invoke2', async () => {
       const receiver = createTmpAccount(6)
 
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      const before = await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
@@ -377,12 +346,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should send erc20 with invoke2 use Schnorr', async () => {
       const receiver = createTmpAccount(6)
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      const before = await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
@@ -405,12 +369,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert if wrong cosigner for invoke2()', async () => {
       const receiver = createTmpAccount(6)
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
@@ -426,12 +385,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert if wrong nonce for invoke2()', async () => {
       const receiver = createTmpAccount()
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
@@ -447,12 +401,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert when send erc20 with simulateInvoke2', async () => {
       const receiver = createTmpAccount()
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
@@ -467,12 +416,7 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert when send erc20 with simulateInvoke2 use fake schnorr', async () => {
       const receiver = createTmpAccount()
-      let before = await testERC20.balanceOf(account.address)
-      if (before.lt(TWO_ETH)) {
-        const mintTX = await testERC20.mint(account.address, TWO_ETH)
-        await mintTX.wait()
-        before = before.add(TWO_ETH)
-      }
+      await mint1000testERC20(account.address, ONE_ETH)
 
       const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [receiver.address, ONE_ETH]))
