@@ -9,9 +9,9 @@ contract TestERC20 is ERC20, ERC20Burnable, AccessControl {
     uint8 private immutable _decimals;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor(string memory name, string memory symbol, uint8 decimals_) ERC20(name, symbol) {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(MINTER_ROLE, msg.sender);
+    constructor(string memory name, string memory symbol, uint8 decimals_, address admin) ERC20(name, symbol) {
+        _setupRole(DEFAULT_ADMIN_ROLE, admin);
+        _setupRole(MINTER_ROLE, admin);
 
         _decimals = decimals_;
     }

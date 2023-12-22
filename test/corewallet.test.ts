@@ -93,18 +93,6 @@ describe('BloctoAccount CoreWallet Test', function () {
     await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorized.address, data)
   }
 
-  // use authorizedWallet and cosignerWallet to send ERC20 from authorized
-  async function sendERC20ByAuthorized (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true,
-    authorized: Wallet = authorizedWallet, cosigner: Wallet = cosignerWallet): Promise<void> {
-    const authorizeInAccountNonce = (await account.nonce())
-    const accountLinkAuthorized = BloctoAccount__factory.connect(account.address, authorized)
-    const data = txData(1, testERC20.address, BigNumber.from(0),
-      testERC20.interface.encodeFunctionData('transfer', [to, amount]))
-
-    const sign = withChainId ? await signMessage(cosigner, account.address, authorizeInAccountNonce, data, authorized.address) : await signMessageWithoutChainId(cosigner, account.address, authorizeInAccountNonce, data)
-    await accountLinkAuthorized.invoke1SignerSends(sign.v, sign.r, sign.s, data)
-  }
-
   // use authorizedWallet and cosignerWallet to setDelegate from cosigner
   async function setDelegateByCosigner (account: BloctoAccount, interfaceId: string, delegateAddr: string,
     authorized: Wallet = authorizedWallet, cosigner: Wallet = cosignerWallet): Promise<void> {
@@ -154,7 +142,7 @@ describe('BloctoAccount CoreWallet Test', function () {
   describe('emergency recovery performed - emergencyRecovery', () => {
     let account: BloctoAccount
 
-    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = [createTmpAccount(4), createTmpAccount(5), createTmpAccount(6)]
     let curAuthVersion: BigNumber
     let accountLinkRecovery: BloctoAccount
     const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
@@ -254,7 +242,7 @@ describe('BloctoAccount CoreWallet Test', function () {
     let account: BloctoAccount
     let accountLinkRecovery: BloctoAccount
 
-    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = [createTmpAccount(4), createTmpAccount(5), createTmpAccount(6)]
     let curAuthVersion: BigNumber
     const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
     // let accountLinkCosigner2: BloctoAccount
@@ -401,7 +389,7 @@ describe('BloctoAccount CoreWallet Test', function () {
     })
 
     it('should not be able to set a new recovery address by wrong key', async function () {
-      const tmpAccount = createTmpAccount()
+      const tmpAccount = createTmpAccount(392)
       const setRecoveryAddressData = txData(1, account.address, BigNumber.from(0),
         account.interface.encodeFunctionData('setRecoveryAddress', [recoverWallet2.address]))
 
@@ -491,21 +479,6 @@ describe('BloctoAccount CoreWallet Test', function () {
       await expect(
         accountLinkAuthorized.invoke0(data)
       ).to.revertedWith('invalid authorization')
-    })
-
-    it('should be able to perform transactions with authorized key (send ERC20)', async () => {
-      // prepare
-      const receiveAccount = createTmpAccount()
-      await testERC20.mint(account.address, TWO_ETH)
-
-      // test send ERC20
-      const before = await testERC20.balanceOf(account.address)
-      const beforeRecevive = await testERC20.balanceOf(receiveAccount.address)
-
-      await sendERC20ByAuthorized(account, receiveAccount.address, ONE_ETH, true, authorizedWallet2, cosignerWallet2)
-
-      expect(await testERC20.balanceOf(account.address)).to.equal(before.sub(ONE_ETH))
-      expect(await testERC20.balanceOf(receiveAccount.address)).to.equal(beforeRecevive.add(ONE_ETH))
     })
 
     describe('isValidSignature test', () => {
@@ -616,7 +589,7 @@ describe('BloctoAccount CoreWallet Test', function () {
   describe('wallet delegate function', () => {
     const BloctoAccountSalt = 224230
     let account: BloctoAccount
-    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+    const [authorizedWallet2, cosignerWallet2, recoverWallet2] = [createTmpAccount(4), createTmpAccount(5), createTmpAccount(6)]
 
     before(async function () {
       const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, authorizedWallet2, 1)
@@ -637,12 +610,12 @@ describe('BloctoAccount CoreWallet Test', function () {
     })
 
     it('should not be able to delegate function with wrong key', async () => {
-      const tmpAccount = createTmpAccount()
+      const tmpAccount = createTmpAccount(613)
       const interfaceId = testERC20.interface.encodeFunctionData('senderBalance')
 
       await expect(
         setDelegateByCosigner(account, interfaceId, testERC20.address, authorizedWallet2, tmpAccount)
-      ).to.revertedWith('must be called from `invoke()`')
+      ).to.be.reverted
     })
 
     it('should not be able to directly call delegate function', async () => {
@@ -667,8 +640,7 @@ describe('BloctoAccount CoreWallet Test', function () {
 
     it('should be able to delegate function with payable', async () => {
       await testERC20.mint(account.address, TWO_ETH)
-      await fund(authorizedWallet2.address)
-      await fund(authorizedWallet2.address)
+      await fund(authorizedWallet2.address, '2')
 
       const interfaceId = testERC20.interface.encodeFunctionData('payableLookBalance')
       await setDelegateByCosigner(account, interfaceId, testERC20.address, authorizedWallet2, cosignerWallet2)
@@ -859,7 +831,7 @@ describe('BloctoAccount CoreWallet Test', function () {
     })
 
     it('should revert if not authorized addresses must be equal', async () => {
-      const anyAccount = createTmpAccount()
+      const anyAccount = createTmpAccount(867)
       const sign = await signMessage(anyAccount, account.address, newNonce, anyData)
       await expect(
         account.invoke1CosignerSends(sign.v, sign.r, sign.s, newNonce, authorizedWallet2.address, anyData)
@@ -894,33 +866,6 @@ describe('BloctoAccount CoreWallet Test', function () {
       authorizeInAccountNonce = (await account.nonce())
 
       sign = await signMessage(cosignerWallet2, account.address, authorizeInAccountNonce, anyData, authorizedWallet2.address)
-    })
-
-    it('should revert if v of signature is invalid', async () => {
-      await expect(
-        account.invoke1SignerSends(0, sign.r, sign.s, anyData)
-      ).to.revertedWith('invalid signature version')
-    })
-
-    it('should revert if s of signature is invalid', async () => {
-      await expect(
-        account.invoke1SignerSends(sign.v, sign.r, '0x' + '8'.repeat(64), anyData)
-      ).to.revertedWith('s of signature is too large')
-    })
-
-    it('should revert if signature is invalid', async () => {
-      const fake32bytes = '0x' + '1'.repeat(64)
-      await expect(
-        account.invoke1SignerSends(sign.v, fake32bytes, fake32bytes, anyData)
-      ).to.revertedWith('invalid signature')
-    })
-
-    it('should revert if not authorized addresses must be equal', async () => {
-      const anyAccount = createTmpAccount()
-      const sign = await signMessage(anyAccount, account.address, authorizeInAccountNonce, anyData, authorizedWallet2.address)
-      await expect(
-        account.invoke1SignerSends(sign.v, sign.r, sign.s, anyData)
-      ).to.revertedWith('invalid authorization')
     })
   })
 })

@@ -14,7 +14,9 @@ import {
   createAddress,
   simulationResultCatch,
   createAccount,
+  createTmpAccount,
   createAuthorizedCosignerRecoverWallet,
+  createAuthorizedCosignerRecoverWallet2,
   getMergedKey
 } from '../testutils'
 import { getUserOpHash, fillAndSignWithCoSigner } from './UserOp'
@@ -80,7 +82,7 @@ describe('EntryPoint', function () {
     let recoverWallet1: Wallet
 
     before(async () => {
-      [authorizedWallet1, cosignerWallet1, recoverWallet1] = createAuthorizedCosignerRecoverWallet()
+      [authorizedWallet1, cosignerWallet1, recoverWallet1] = createAuthorizedCosignerRecoverWallet2()
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
       account1 = await createAccount(
         ethersSigner,
@@ -186,7 +188,7 @@ describe('EntryPoint', function () {
 
     it('should not call initCode from entrypoint', async () => {
       // a possible attack: call an account's execFromEntryPoint through initCode. This might lead to stolen funds.
-      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet()
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = [createTmpAccount(5), createTmpAccount(6), createTmpAccount(7)]
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet2, cosignerWallet2, 0)
       const account = await createAccount(
         ethersSigner,

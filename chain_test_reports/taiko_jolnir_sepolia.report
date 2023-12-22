@@ -1,0 +1,163 @@
+[
+  {
+    version: '0.8.17',
+    settings: { optimizer: [Object], outputSelection: [Object] }
+  }
+]
+No need to generate any newer typings.
+
+
+  BloctoAccount Test
+test with signer:  0x7dC20dC696b2107cB5f24630c70337889546F37a
+Using Existed Entrypoint!
+Using Existed Create3FactoryAddr (0xd6CA621705575c3c23622b0802964a556870953b)!
+Using Existed BloctoAccountCloneableWallet (0xbC628e9e3a3debEba43F89ee0F07208DCe9e8865)!
+Using Existed BloctoAccountFactory (0xD3319936bA8995b3a770e36C29cdbb231c571767)!
+Using Existed TestERC20 (0xfBF1C3759cCe7E51c76b139B0E1D13E8496d84eF)!
+Using Existed BloctoAccount (0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)!
+    wallet functions
+      ✔ should not init account again (724ms)
+      ✔ should not init2 account again (527ms)
+      ✔ should not initImplementation again (531ms)
+      1) should not initImplementation with a contract
+send 0.01 eth to blocto account(0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)
+      ✔ should receive native token (11946ms)
+sending 1 testERC20 from 0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650 to 0x565Bc6e21363CFE09aEBc178171B69D8Fdb0A588 ...
+      ✔ should send ERC20 token (25080ms)
+      ✔ should send native token (9626ms)
+      ✔ should revert if invalid data length (2053ms)
+      ✔ should send erc20 with invoke2 (24139ms)
+      ✔ should send erc20 with invoke2 use Schnorr (24795ms)
+      ✔ should revert if wrong cosigner for invoke2() (1638ms)
+      ✔ should revert if wrong nonce for invoke2() (1470ms)
+      ✔ should revert when send erc20 with simulateInvoke2 (1311ms)
+      ✔ should revert when send erc20 with simulateInvoke2 use fake schnorr (1332ms)
+    factory functions
+      ✔ should not initiate again (410ms)
+      ✔ should revert if sender is not grant role for createAccount (1467ms)
+      ✔ should revert if sender is not grant role for createAccount of version 1.5.2 (1679ms)
+      ✔ should revert if sender is not grant role for createAccount2 (1171ms)
+      ✔ should revert if sender is not grant role for createAccount2 of version 1.5.2 (1194ms)
+      ✔ should revert if sender is not grant role for createAccount of version 1.5.2 (1223ms)
+      ✔ should revert if sender is not grant role for createAccount2WithInvoke2() (1225ms)
+      ✔ should revert if sender is not grant role for setImplementation (1234ms)
+      ✔ should revert if setImplementation with zero address (520ms)
+      ✔ should revert if sender is not grant role for setImplementation_1_5_1 (1275ms)
+      ✔ should revert if setImplementation_1_5_1 with zero address (349ms)
+Using salt 154978705709815
+running createAccountWithInvoke2...
+      2) should create account and run tx from createAccountWithInvoke2
+Using salt  399786678057793
+      3) should create account and run tx from createAccountWithInvoke2 use Schnorr
+Using salt  757357776206558
+running createAccount2WithInvoke2...
+      4) should create account and run tx from createAccount2WithInvoke2
+
+
+  24 passing (4m)
+  4 failing
+
+  1) BloctoAccount Test
+       wallet functions
+         should not initImplementation with a contract:
+     Error: Timeout of 30000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (/Users/kbe/portto/4337/4337-contracts/test/bloctoaccount.test.ts)
+      at listOnTimeout (node:internal/timers:559:17)
+      at processTimers (node:internal/timers:502:7)
+
+  2) BloctoAccount Test
+       factory functions
+         should create account and run tx from createAccountWithInvoke2:
+     Error: Timeout of 30000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (/Users/kbe/portto/4337/4337-contracts/test/bloctoaccount.test.ts)
+      at listOnTimeout (node:internal/timers:559:17)
+      at processTimers (node:internal/timers:502:7)
+
+  3) BloctoAccount Test
+       factory functions
+         should create account and run tx from createAccountWithInvoke2 use Schnorr:
+     Error: Timeout of 30000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (/Users/kbe/portto/4337/4337-contracts/test/bloctoaccount.test.ts)
+      at listOnTimeout (node:internal/timers:559:17)
+      at processTimers (node:internal/timers:502:7)
+
+  4) BloctoAccount Test
+       factory functions
+         should create account and run tx from createAccount2WithInvoke2:
+     Error: Timeout of 30000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (/Users/kbe/portto/4337/4337-contracts/test/bloctoaccount.test.ts)
+      at listOnTimeout (node:internal/timers:559:17)
+      at processTimers (node:internal/timers:502:7)
+
+
+
+[
+  {
+    version: '0.8.17',
+    settings: { optimizer: [Object], outputSelection: [Object] }
+  }
+]
+No need to generate any newer typings.
+
+
+  BloctoAccount Test
+test with signer:  0x7dC20dC696b2107cB5f24630c70337889546F37a
+Using Existed Entrypoint!
+Using Existed Create3FactoryAddr (0xd6CA621705575c3c23622b0802964a556870953b)!
+Using Existed BloctoAccountCloneableWallet (0xbC628e9e3a3debEba43F89ee0F07208DCe9e8865)!
+Using Existed BloctoAccountFactory (0xD3319936bA8995b3a770e36C29cdbb231c571767)!
+Using Existed TestERC20 (0xfBF1C3759cCe7E51c76b139B0E1D13E8496d84eF)!
+Using Existed BloctoAccount (0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)!
+    wallet functions
+      ✔ should not initImplementation with a contract (27664ms)
+
+
+  1 passing (34s)
+[
+  {
+    version: '0.8.17',
+    settings: { optimizer: [Object], outputSelection: [Object] }
+  }
+]
+No need to generate any newer typings.
+
+
+  BloctoAccount Test
+test with signer:  0x7dC20dC696b2107cB5f24630c70337889546F37a
+Using Existed Entrypoint!
+Using Existed Create3FactoryAddr (0xd6CA621705575c3c23622b0802964a556870953b)!
+Using Existed BloctoAccountCloneableWallet (0xbC628e9e3a3debEba43F89ee0F07208DCe9e8865)!
+Using Existed BloctoAccountFactory (0xD3319936bA8995b3a770e36C29cdbb231c571767)!
+Using Existed TestERC20 (0xfBF1C3759cCe7E51c76b139B0E1D13E8496d84eF)!
+Using Existed BloctoAccount (0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)!
+    factory functions
+Using salt 635075227430734
+running createAccountWithInvoke2...
+      ✔ should create account and run tx from createAccountWithInvoke2 (48366ms)
+Using salt  43892202717129
+      ✔ should create account and run tx from createAccountWithInvoke2 use Schnorr (48204ms)
+
+
+  2 passing (2m)
+
+[
+  {
+    version: '0.8.17',
+    settings: { optimizer: [Object], outputSelection: [Object] }
+  }
+]
+No need to generate any newer typings.
+
+
+  BloctoAccount Test
+test with signer:  0x7dC20dC696b2107cB5f24630c70337889546F37a
+Using Existed Entrypoint!
+Using Existed Create3FactoryAddr (0xd6CA621705575c3c23622b0802964a556870953b)!
+Using Existed BloctoAccountCloneableWallet (0xbC628e9e3a3debEba43F89ee0F07208DCe9e8865)!
+Using Existed BloctoAccountFactory (0xD3319936bA8995b3a770e36C29cdbb231c571767)!
+Using Existed TestERC20 (0xfBF1C3759cCe7E51c76b139B0E1D13E8496d84eF)!
+Using Existed BloctoAccount (0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)!
+    factory functions
+Using salt  384022064068344
+running createAccount2WithInvoke2...
+      ✔ should create account and run tx from createAccount2WithInvoke2 (60248ms)
+
+
+  1 passing (1m)
+

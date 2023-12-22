@@ -1,0 +1,58 @@
+[
+  {
+    version: '0.8.17',
+    settings: { optimizer: [Object], outputSelection: [Object] }
+  }
+]
+No need to generate any newer typings.
+
+
+  BloctoAccount Test
+test with signer:  0x7dC20dC696b2107cB5f24630c70337889546F37a
+Using Existed Entrypoint!
+Using Existed Create3FactoryAddr (0xd6CA621705575c3c23622b0802964a556870953b)!
+Using Existed BloctoAccountCloneableWallet (0xbC628e9e3a3debEba43F89ee0F07208DCe9e8865)!
+Using Existed BloctoAccountFactory (0xD3319936bA8995b3a770e36C29cdbb231c571767)!
+Using Existed TestERC20 (0xfBF1C3759cCe7E51c76b139B0E1D13E8496d84eF)!
+Using Existed BloctoAccount (0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)!
+    wallet functions
+      ✔ should not init account again (289ms)
+      ✔ should not init2 account again (222ms)
+      ✔ should not initImplementation again (174ms)
+      ✔ should not initImplementation with a contract (12242ms)
+send 0.01 eth to blocto account(0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650)
+      ✔ should receive native token (6109ms)
+sending 1 testERC20 from 0x1cEd200327601Ac19Ab09Bfc452E7dEDcAc3F650 to 0x565Bc6e21363CFE09aEBc178171B69D8Fdb0A588 ...
+      ✔ should send ERC20 token (7145ms)
+      ✔ should send native token (7709ms)
+      ✔ should revert if invalid data length (2005ms)
+      ✔ should send erc20 with invoke2 (7214ms)
+      ✔ should send erc20 with invoke2 use Schnorr (7081ms)
+      ✔ should revert if wrong cosigner for invoke2() (629ms)
+      ✔ should revert if wrong nonce for invoke2() (945ms)
+      ✔ should revert when send erc20 with simulateInvoke2 (489ms)
+      ✔ should revert when send erc20 with simulateInvoke2 use fake schnorr (697ms)
+    factory functions
+      ✔ should not initiate again (140ms)
+      ✔ should revert if sender is not grant role for createAccount (1204ms)
+      ✔ should revert if sender is not grant role for createAccount of version 1.5.2 (1234ms)
+      ✔ should revert if sender is not grant role for createAccount2 (1560ms)
+      ✔ should revert if sender is not grant role for createAccount2 of version 1.5.2 (1244ms)
+      ✔ should revert if sender is not grant role for createAccount of version 1.5.2 (1164ms)
+      ✔ should revert if sender is not grant role for createAccount2WithInvoke2() (1153ms)
+      ✔ should revert if sender is not grant role for setImplementation (1124ms)
+      ✔ should revert if setImplementation with zero address (265ms)
+      ✔ should revert if sender is not grant role for setImplementation_1_5_1 (1050ms)
+      ✔ should revert if setImplementation_1_5_1 with zero address (183ms)
+Using salt 997540765029532
+running createAccountWithInvoke2...
+      ✔ should create account and run tx from createAccountWithInvoke2 (14122ms)
+Using salt  45224993534005
+      ✔ should create account and run tx from createAccountWithInvoke2 use Schnorr (13715ms)
+Using salt  9234424011737
+running createAccount2WithInvoke2...
+      ✔ should create account and run tx from createAccount2WithInvoke2 (10299ms)
+
+
+  28 passing (2m)
+

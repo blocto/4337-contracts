@@ -36,6 +36,8 @@ export const tostr = (x: any): string => x != null ? x.toString() : 'null'
 
 export const ShowCreateAccountGas = false
 
+const EntryPointV060 = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+
 export function tonumber (x: any): number {
   try {
     return parseFloat(x.toString())
@@ -46,14 +48,20 @@ export function tonumber (x: any): number {
 }
 
 // just throw 1eth from account[0] to the given address (or contract instance)
-export async function fund (contractOrAddress: string | Contract, amountEth = '1'): Promise<void> {
+export async function fund (contractOrAddress: string | Contract, amountEth = '0.05'): Promise<void> {
   let address: string
   if (typeof contractOrAddress === 'string') {
     address = contractOrAddress
   } else {
     address = contractOrAddress.address
   }
-  await ethers.provider.getSigner().sendTransaction({ to: address, value: parseEther(amountEth) })
+  const oriBalance = await ethers.provider.getBalance(address)
+  if (oriBalance.gt(parseEther(amountEth))) {
+    return
+  }
+  console.log(`funding ${address} 'with ${amountEth} eth...`)
+  const tx = await ethers.provider.getSigner().sendTransaction({ to: address, value: parseEther(amountEth) })
+  await tx.wait()
 }
 
 export async function getBalance (address: string): Promise<number> {
@@ -68,19 +76,19 @@ export async function getTokenBalance (token: IERC20, address: string): Promise<
 
 let counter = 0 // Math.floor(Math.random() * 5000)
 
-export function createTmpAccount (): Wallet {
-  const privateKey = keccak256(Buffer.from(arrayify(BigNumber.from(++counter))))
-  return new ethers.Wallet(privateKey, ethers.provider)
-  // const accounts: any = config.networks.hardhat.accounts
-  // console.log('accounts.path: ', accounts.path)
-  // console.log('accounts.mnemonic: ', accounts.mnemonic)
-  // counter++
-  // return ethers.Wallet.fromMnemonic(accounts.mnemonic, accounts.path + `/${counter}`)
-}
+export function createTmpAccount (idx: number = 1): Wallet {
+  const envName = 'TMP_KEY_' + String(idx)
+  const privateKey = typeof (process.env[envName]) !== 'undefined' ? process.env[envName] : keccak256(Buffer.from(arrayify(BigNumber.from(++counter))))
 
+  return new Wallet(privateKey as string, ethers.provider)
+}
 // create non-random account, so gas calculations are deterministic
 export function createAuthorizedCosignerRecoverWallet (): [Wallet, Wallet, Wallet] {
-  return [createTmpAccount(), createTmpAccount(), createTmpAccount()]
+  return [createTmpAccount(1), createTmpAccount(2), createTmpAccount(3)]
+}
+
+export function createAuthorizedCosignerRecoverWallet2 (): [Wallet, Wallet, Wallet] {
+  return [createTmpAccount(4), createTmpAccount(5), createTmpAccount(6)]
 }
 
 export function createAddress (): string {
@@ -186,8 +194,6 @@ export function decodeRevertReason (data: string, nullIfNoMatch = true): string 
   return null
 }
 
-let currentNode: string = ''
-
 // basic geth support
 // - by default, has a single account. our code needs more.
 export async function checkForGeth (): Promise<void> {
@@ -245,9 +251,18 @@ export function simulationResultWithAggregationCatch (e: any): any {
 }
 
 export async function deployEntryPoint (provider = ethers.provider): Promise<EntryPoint> {
-  const create2factory = new Create2Factory(provider)
-  const epf = new EntryPoint__factory(provider.getSigner())
-  const addr = await create2factory.deploy(epf.bytecode, 0, process.env.COVERAGE != null ? 20e6 : 8e6)
+  // console.log('in deployEntryPoint')
+  // console.log('await ethers.provider.getCode(EntryPointV060):', await ethers.provider.getCode(EntryPointV060))
+  let addr = EntryPointV060
+  if ((await ethers.provider.getCode(EntryPointV060)) !== '0x') {
+    console.log('Using Existed Entrypoint!')
+  } else {
+    const create2factory = new Create2Factory(provider)
+    const epf = new EntryPoint__factory(provider.getSigner())
+
+    addr = await create2factory.deploy(epf.bytecode, 0, process.env.COVERAGE != null ? 20e6 : 8e6)
+  }
+
   return EntryPoint__factory.connect(addr, provider.getSigner())
 }
 
@@ -294,14 +309,13 @@ export async function createAccountV151 (
     ethers.utils.hexZeroPad(salt.toHexString(), 32),
     cosignerAddresses, recoverAddresses
   ]))
+  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const tx = await accountFactory.createAccount_1_5_1(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
-  // console.log('tx: ', tx)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {
     console.log('createAccount 151 gasUsed: ', receipt.gasUsed)
   }
 
-  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
   return account
 }
