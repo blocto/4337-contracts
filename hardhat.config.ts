@@ -89,11 +89,6 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 59144
     },
-    zora: {
-      url: 'https://bridge.zora.energy/',
-      accounts: getDeployAccount(),
-      chainId: 7777777
-    },
     goerli: {
       url: 'https://ethereum-goerli.publicnode.com',
       accounts: getDeployAccount(),
@@ -139,6 +134,11 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 43113
     },
+    scroll: {
+      url: 'https://rpc.scroll.io',
+      accounts: getDeployAccount(),
+      chainId: 534352
+    },
     scroll_sepolia: {
       url: 'https://sepolia-rpc.scroll.io',
       accounts: getDeployAccount(),
@@ -153,6 +153,11 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.jolnir.taiko.xyz',
       accounts: getDeployAccount(),
       chainId: 167007
+    },
+    base: {
+      url: 'https://mainnet.base.org',
+      accounts: getDeployAccount(),
+      chainId: 8453
     },
     base_goerli: {
       url: 'https://goerli.base.org',
@@ -173,6 +178,11 @@ const config: HardhatUserConfig = {
       url: 'https://zircuit1.p2pify.com/',
       accounts: getDeployAccount(),
       chainId: 48899
+    },
+    zora: {
+      url: 'https://rpc.zora.energy',
+      accounts: getDeployAccount(),
+      chainId: 7777777
     },
     zora_goerli: {
       url: 'https://testnet.rpc.zora.co',
@@ -218,6 +228,7 @@ const config: HardhatUserConfig = {
       zora: LINEASCAN_API_KEY,
       zoraGoerli: LINEASCAN_API_KEY,
       zoraSepolia: LINEASCAN_API_KEY,
+      scroll: SCROLLSCAN_API_KEY,
       scrollSepolia: SCROLLSCAN_API_KEY,
       astarZkevmSepolia: SCROLLSCAN_API_KEY,
       taikoJolnirSepolia: SCROLLSCAN_API_KEY
@@ -301,6 +312,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://base-sepolia.blockscout.com/api',
           browserURL: 'https://base-sepolia.blockscout.com/'
+        }
+      },
+      {
+        network: 'scroll',
+        chainId: 534352,
+        urls: {
+          apiURL: 'https://api.scrollscan.com/api',
+          browserURL: 'https://scrollscan.com/'
         }
       },
       {
