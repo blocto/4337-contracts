@@ -45,7 +45,7 @@ function randNumber (): number {
 }
 
 describe('BloctoAccount Test', function () {
-  const ethersSigner = ethers.provider.getSigner()
+  const ethersSigner = ethers.provider.getSigner(0)
 
   let authorizedWallet: Wallet
   let cosignerWallet: Wallet
@@ -151,7 +151,7 @@ describe('BloctoAccount Test', function () {
     console.log('test with signer: ', await ethersSigner.getAddress());
     // 3 wallet
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
-    await fund(cosignerWallet.address)
+    // await fund(cosignerWallet.address)
     // 4337
     entryPoint = await deployEntryPoint()
 
@@ -747,12 +747,13 @@ describe('BloctoAccount Test', function () {
           cosignerWallet.address, recoverWallet.address
         ]))
         // local account
-        if (factory.address === '0x482b159BA88C81b833a84a6a6ca093A5beD120dD') {
+        if (factory.address === '0x591E00821444155a7076cd7254747d05D1374267') {
           expect(initImplementation).to.equal('0x6569873b0dCD1c5DE53101080996B0782f4e912c')
-          expect(account.address).to.equal('0xdD0D4023f0bB3D23f38b50fbDBD025ef8237da31')
+          expect(account.address).to.equal('0xCE4b477244c5E6aE3496524ea17bB4fde797b462')
           expect(await factory.getAddress_1_5_1(salt)).to.equal(account.address)
           // testnet account
         } else if (factory.address === '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1') {
+          // deploy using account is 0x162235eBF3381eDE497dFa523b2a77E2941583eC
           expect(initImplementation).to.equal('0x89EbeBE2bA6638729FBD2F33d200A48C81684c3c')
           expect(account.address).to.equal('0x8A04Cbb16523778BEff84f034eB80b72160B65D6')
           expect(await factory.getAddress_1_5_1(salt)).to.equal(account.address)
@@ -766,6 +767,52 @@ describe('BloctoAccount Test', function () {
         }
       } else {
         console.log('NOTE: this test is NOT check consistent address')
+      }
+    })
+
+    it('account address shoule be same everytime of createAccount2_1_5_1', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet2()
+      const salt = get151SaltFromAddress(0, cosignerWallet2.address, recoverWallet2.address)
+      const predictAddr151 = await factory.getAddress_1_5_1(salt)
+
+      if ((await ethers.provider.getCode(predictAddr151)) === '0x') {
+        const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+        const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+        console.log(`Deploying to BloctoAccount (${predictAddr151})...`)
+        const tx = await factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+          cosignerWallet.address, recoverWallet2.address,
+          salt,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+
+        await tx.wait()
+      }
+
+      const account2_1_5_1 = await BloctoAccount__factory.connect(predictAddr151, ethersSigner)
+      expect(predictAddr151).to.equal(account2_1_5_1.address)
+      expect(await account2_1_5_1.VERSION()).to.equal(NextVersion)
+
+      if (cosignerWallet2.address === '0x4eF791438972d2D41FF4BF7911E0F7372971eFcA' &&
+      recoverWallet2.address === '0xFEC60025526f37BEB6134631322E98e48794d8fb') {
+        const initImplementation = await factory.initImplementation()
+        // local account
+        if (factory.address === '0x591E00821444155a7076cd7254747d05D1374267') {
+          expect(initImplementation).to.equal('0x6569873b0dCD1c5DE53101080996B0782f4e912c')
+          expect(account2_1_5_1.address).to.equal('0xB454E8D70F7f876DAe90217EB1CD01a5B5a9F99d')
+          // testnet account
+        } else if (factory.address === '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1') {
+          expect(initImplementation).to.equal('0x89EbeBE2bA6638729FBD2F33d200A48C81684c3c')
+          expect(account2_1_5_1.address).to.equal('0x14650A148F7818F0Bd5403026c5BBA460f9394d4')
+          // mainnet account
+        } else if (factory.address === '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183') {
+          expect(initImplementation).to.equal('0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E')
+          expect(account2_1_5_1.address).to.equal('0x19b4b23Bdbe7deB6c95E6A952Aa7Dd2C5f192Ce5')
+        } else {
+          console.log('NOTE: this test is NOT check consistent address, cannot find match factory address of createAccount2_1_5_1')
+        }
+      } else {
+        console.log('NOTE: this test is NOT check consistent address of createAccount2_1_5_1')
       }
     })
   })
