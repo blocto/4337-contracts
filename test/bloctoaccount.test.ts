@@ -738,7 +738,7 @@ describe('BloctoAccount Test', function () {
 
   // for Blocto Account Factory
   describe('consistent address check', () => {
-    it('account address shoule be same everytime', async () => {
+    it('account address should be same everytime', async () => {
       if (cosignerWallet.address === '0x4F406180e1F1E4CA9C4E9dCc16aFA2039b733F58' &&
         recoverWallet.address === '0x4b2D819a543762918eaD57b08a2F85D1FD676393') {
         const initImplementation = await factory.initImplementation()
@@ -770,7 +770,7 @@ describe('BloctoAccount Test', function () {
       }
     })
 
-    it('account address shoule be same everytime of createAccount2_1_5_1', async () => {
+    it('account address should be same everytime of createAccount2_1_5_1', async () => {
       const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet2()
       const salt = get151SaltFromAddress(0, cosignerWallet2.address, recoverWallet2.address)
       const predictAddr151 = await factory.getAddress_1_5_1(salt)
