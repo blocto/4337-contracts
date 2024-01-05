@@ -775,10 +775,10 @@ describe('BloctoAccount Test', function () {
       const salt = get151SaltFromAddress(0, cosignerWallet2.address, recoverWallet2.address)
       const predictAddr151 = await factory.getAddress_1_5_1(salt)
 
-      if ((await ethers.provider.getCode(predictAddr151)) === '0x') {
-        const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
-        const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
 
+      if ((await ethers.provider.getCode(predictAddr151)) === '0x') {
         console.log(`Deploying to BloctoAccount (${predictAddr151})...`)
         const tx = await factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
           cosignerWallet.address, recoverWallet2.address,
@@ -787,6 +787,14 @@ describe('BloctoAccount Test', function () {
           [px, px2])
 
         await tx.wait()
+      } else {
+        await expect(
+          factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+            cosignerWallet.address, recoverWallet2.address,
+            salt,
+            [pxIndexWithParity, pxIndexWithParity2],
+            [px, px2])
+        ).to.revertedWith('execution reverted')
       }
 
       const account2_1_5_1 = await BloctoAccount__factory.connect(predictAddr151, ethersSigner)
