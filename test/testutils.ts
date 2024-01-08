@@ -119,7 +119,7 @@ export async function calcGasUsage (rcpt: ContractReceipt, entryPoint: EntryPoin
 export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt, pxIndexWithParity, px): BytesLike {
   return hexConcat([
     factory.address,
-    factory.interface.encodeFunctionData('createAccount', [authorizedAddress, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
+    factory.interface.encodeFunctionData('createAccountLegacy', [authorizedAddress, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
   ])
 }
 
@@ -127,7 +127,7 @@ export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAdd
 export function getAccountInitCode2 (factory: BloctoAccountFactory, authorizedAddresses: BytesLike, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
   return hexConcat([
     factory.address,
-    factory.interface.encodeFunctionData('createAccount2', [authorizedAddresses, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
+    factory.interface.encodeFunctionData('createAccount2Legacy', [authorizedAddresses, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
   ])
 }
 
@@ -309,7 +309,7 @@ export async function createAccountV151 (
     ethers.utils.hexZeroPad(salt.toHexString(), 32),
     cosignerAddresses, recoverAddresses
   ]))
-  const accountAddress = await accountFactory.getAddress(cosignerAddresses, recoverAddresses, salt)
+  const accountAddress = await accountFactory.getAddress_1_5_1(newSalt)
   const tx = await accountFactory.createAccount_1_5_1(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {

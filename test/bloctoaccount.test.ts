@@ -45,7 +45,7 @@ function randNumber (): number {
 }
 
 describe('BloctoAccount Test', function () {
-  const ethersSigner = ethers.provider.getSigner()
+  const ethersSigner = ethers.provider.getSigner(0)
 
   let authorizedWallet: Wallet
   let cosignerWallet: Wallet
@@ -80,10 +80,10 @@ describe('BloctoAccount Test', function () {
 
     const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
 
-    let account = null
+    let retAccount = null
     switch (version) {
       case '1.4.0':
-        account = await createAccount(
+        retAccount = await createAccount(
           ethersSigner,
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
@@ -97,7 +97,8 @@ describe('BloctoAccount Test', function () {
       case '1.5.1':
       case '1.5.2':
       default:
-        account = await createAccountV151(
+        console.log('use 1.5.1')
+        retAccount = await createAccountV151(
           ethersSigner,
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
@@ -109,18 +110,18 @@ describe('BloctoAccount Test', function () {
         )
         break
     }
-    await fund(account)
+    await fund(retAccount)
 
-    return account
+    return retAccount
   }
 
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
-  async function sendERC20 (account: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
+  async function sendERC20 (iAccount: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
     let authorizeInAccountNonce: BigNumber
     if (withChainId) {
-      account = account as BloctoAccount
-      authorizeInAccountNonce = (await account.nonce()).add(1)
+      iAccount = iAccount as BloctoAccount
+      authorizeInAccountNonce = (await iAccount.nonce()).add(1)
     } else {
       const accountV140 = await BloctoAccountV140__factory.connect(account.address, cosignerWallet)
       authorizeInAccountNonce = (await accountV140.nonces(authorizedWallet.address)).add(1)
@@ -150,7 +151,7 @@ describe('BloctoAccount Test', function () {
     console.log('test with signer: ', await ethersSigner.getAddress());
     // 3 wallet
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
-    await fund(cosignerWallet.address)
+    // await fund(cosignerWallet.address)
     // 4337
     entryPoint = await deployEntryPoint()
 
@@ -172,7 +173,7 @@ describe('BloctoAccount Test', function () {
     }
     // account factory
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
-    const BloctoAccountFactoryProxySalt = hexZeroPad(Buffer.from('BlotoAccountFactoryProxy', 'utf-8'), 32)
+    const BloctoAccountFactoryProxySalt = hexZeroPad(Buffer.from('BloctoAccountFactoryProxy_v140', 'utf-8'), 32)
     const accountFactoryAddress: string = await create3Factory.getDeployed(await create3Factory.signer.getAddress(), BloctoAccountFactoryProxySalt)
     if ((await ethers.provider.getCode(accountFactoryAddress)) !== '0x') {
       console.log(`Using Existed BloctoAccountFactory (${accountFactoryAddress})!`)
@@ -210,8 +211,8 @@ describe('BloctoAccount Test', function () {
       )
     }
     testERC20 = await TestERC20__factory.connect(testERC200Address, ethersSigner)
-
-    account = await testCreateAccount(212)
+    // create global account
+    account = await testCreateAccount(0)
   })
 
   describe('wallet functions', () => {
@@ -450,7 +451,7 @@ describe('BloctoAccount Test', function () {
     it('should revert if sender is not grant role for createAccount', async () => {
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
       await expect(
-        createAccount(
+        createAccountV151(
           ethersSigner,
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
@@ -487,7 +488,7 @@ describe('BloctoAccount Test', function () {
       const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
 
       await expect(
-        otherLinkFactory.createAccount2([authorizedWallet2.address, authorizedWallet22.address],
+        otherLinkFactory.createAccount2Legacy([authorizedWallet2.address, authorizedWallet22.address],
           cosignerWallet2.address, recoverWallet2.address,
           510, // random salt
           [pxIndexWithParity, pxIndexWithParity2],
@@ -732,6 +733,95 @@ describe('BloctoAccount Test', function () {
         }
       })
       expect(findWalletCreated).true
+    })
+  })
+
+  // for Blocto Account Factory
+  describe('consistent address check', () => {
+    it('account address should be same everytime', async () => {
+      if (cosignerWallet.address === '0x4F406180e1F1E4CA9C4E9dCc16aFA2039b733F58' &&
+        recoverWallet.address === '0x4b2D819a543762918eaD57b08a2F85D1FD676393') {
+        const initImplementation = await factory.initImplementation()
+        const salt = keccak256(concat([
+          ethers.utils.hexZeroPad(BigNumber.from(0).toHexString(), 32),
+          cosignerWallet.address, recoverWallet.address
+        ]))
+        // local account
+        if (factory.address === '0x591E00821444155a7076cd7254747d05D1374267') {
+          expect(initImplementation).to.equal('0x6569873b0dCD1c5DE53101080996B0782f4e912c')
+          expect(account.address).to.equal('0xCE4b477244c5E6aE3496524ea17bB4fde797b462')
+          expect(await factory.getAddress_1_5_1(salt)).to.equal(account.address)
+          // testnet account
+        } else if (factory.address === '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1') {
+          // deploy using account is 0x162235eBF3381eDE497dFa523b2a77E2941583eC
+          expect(initImplementation).to.equal('0x89EbeBE2bA6638729FBD2F33d200A48C81684c3c')
+          expect(account.address).to.equal('0x8A04Cbb16523778BEff84f034eB80b72160B65D6')
+          expect(await factory.getAddress_1_5_1(salt)).to.equal(account.address)
+          // mainnet account
+        } else if (factory.address === '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183') {
+          expect(initImplementation).to.equal('0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E')
+          expect(account.address).to.equal('0xF74EFcA1bc823d65313cFB67a46d54349B2f0592')
+          expect(await factory.getAddress_1_5_1(salt)).to.equal(account.address)
+        } else {
+          console.log('NOTE: this test is NOT check consistent address, cannot find match factory address')
+        }
+      } else {
+        console.log('NOTE: this test is NOT check consistent address')
+      }
+    })
+
+    it('account address should be same everytime of createAccount2_1_5_1', async () => {
+      const [authorizedWallet2, cosignerWallet2, recoverWallet2] = createAuthorizedCosignerRecoverWallet2()
+      const salt = get151SaltFromAddress(0, cosignerWallet2.address, recoverWallet2.address)
+      const predictAddr151 = await factory.getAddress_1_5_1(salt)
+
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
+
+      if ((await ethers.provider.getCode(predictAddr151)) === '0x') {
+        console.log(`Deploying to BloctoAccount (${predictAddr151})...`)
+        const tx = await factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+          cosignerWallet.address, recoverWallet2.address,
+          salt,
+          [pxIndexWithParity, pxIndexWithParity2],
+          [px, px2])
+
+        await tx.wait()
+      } else {
+        await expect(
+          factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+            cosignerWallet.address, recoverWallet2.address,
+            salt,
+            [pxIndexWithParity, pxIndexWithParity2],
+            [px, px2])
+        ).to.revertedWith('execution reverted')
+      }
+
+      const account2_1_5_1 = await BloctoAccount__factory.connect(predictAddr151, ethersSigner)
+      expect(predictAddr151).to.equal(account2_1_5_1.address)
+      expect(await account2_1_5_1.VERSION()).to.equal(NextVersion)
+
+      if (cosignerWallet2.address === '0x4eF791438972d2D41FF4BF7911E0F7372971eFcA' &&
+      recoverWallet2.address === '0xFEC60025526f37BEB6134631322E98e48794d8fb') {
+        const initImplementation = await factory.initImplementation()
+        // local account
+        if (factory.address === '0x591E00821444155a7076cd7254747d05D1374267') {
+          expect(initImplementation).to.equal('0x6569873b0dCD1c5DE53101080996B0782f4e912c')
+          expect(account2_1_5_1.address).to.equal('0xB454E8D70F7f876DAe90217EB1CD01a5B5a9F99d')
+          // testnet account
+        } else if (factory.address === '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1') {
+          expect(initImplementation).to.equal('0x89EbeBE2bA6638729FBD2F33d200A48C81684c3c')
+          expect(account2_1_5_1.address).to.equal('0x14650A148F7818F0Bd5403026c5BBA460f9394d4')
+          // mainnet account
+        } else if (factory.address === '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183') {
+          expect(initImplementation).to.equal('0x53a2A0aF86b0134C7A7b4bD40884dAA78c48416E')
+          expect(account2_1_5_1.address).to.equal('0x19b4b23Bdbe7deB6c95E6A952Aa7Dd2C5f192Ce5')
+        } else {
+          console.log('NOTE: this test is NOT check consistent address, cannot find match factory address of createAccount2_1_5_1')
+        }
+      } else {
+        console.log('NOTE: this test is NOT check consistent address of createAccount2_1_5_1')
+      }
     })
   })
 })

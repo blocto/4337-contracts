@@ -410,7 +410,7 @@ describe('BloctoAccount Upgrade Test', function () {
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
       const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
 
-      const tx = await factory.createAccount2([authorizedWallet2.address, authorizedWallet22.address],
+      const tx = await factory.createAccount2Legacy([authorizedWallet2.address, authorizedWallet22.address],
         cosignerWallet2.address, recoverWallet2.address,
         754264557, // random salt
         [pxIndexWithParity, pxIndexWithParity2],
@@ -469,7 +469,7 @@ describe('BloctoAccount Upgrade Test', function () {
         pxIndexWithParity,
         px)
 
-      const predictAddr = await factory.getAddress(cosignerWallet2.address, recoverWallet2.address, salt)
+      const predictAddr = await factory.getAddress_1_5_1(newSalt)
       const receipt = await tx.wait()
       // console.log('createAccount with multiple authorized address gasUsed: ', receipt.gasUsed)
       let findWalletCreated = false
@@ -494,7 +494,7 @@ describe('BloctoAccount Upgrade Test', function () {
       const salt = 467
       const newSalt = get151SaltFromAddress(salt, cosignerWallet2.address, recoverWallet2.address)
 
-      const predictAddr = await factory.getAddress(cosignerWallet2.address, recoverWallet2.address, BigNumber.from(salt))
+      // const predictAddr = await factory.getAddressLegacy(cosignerWallet2.address, recoverWallet2.address, BigNumber.from(salt))
       const predictAddr151 = await factory.getAddress_1_5_1(newSalt)
 
       const tx = await factory.createAccount2_1_5_1([authorizedWallet2.address, authorizedWallet22.address],
@@ -509,7 +509,7 @@ describe('BloctoAccount Upgrade Test', function () {
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
             event.args?.authorizedAddress === authorizedWallet2.address &&
-            event.args?.wallet === predictAddr &&
+            // event.args?.wallet === predictAddr &&
             event.args?.wallet === predictAddr151) {
           findWalletCreated = true
         }
@@ -642,22 +642,31 @@ describe('BloctoAccount Upgrade Test', function () {
     const MockEntryPointV070 = '0x000000000000000000000000000000000000E070'
     let accountV200: BloctoAccount
     let implementationV200: TestBloctoAccountCloneableWalletV200
+    let factoryNow: BloctoAccountFactory
 
     before(async () => {
-      accountV200 = await testCreateAccount(AccountSalt)
       // mock new entry point version 0.7.0
+      const implementation = await new BloctoAccountCloneableWallet__factory(ethersSigner).deploy(MockEntryPointV070)
       implementationV200 = await new TestBloctoAccountCloneableWalletV200__factory(ethersSigner).deploy(MockEntryPointV070)
+      const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+      factoryNow = await create3DeployTransparentProxy(BloctoAccountFactory,
+        [implementation.address, entryPoint.address, await ethersSigner.getAddress()],
+        { initializer: 'initialize' }, create3Factory, ethersSigner, hexZeroPad(Buffer.from('BloctoAccountFactoryProxy_v200', 'utf-8'), 32))
+      await factoryNow.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
+      await factoryNow.setImplementation_1_5_1(implementationV200.address)
+      accountV200 = await testCreateAccount(AccountSalt, 0, factoryNow)
     })
 
     it('new factory get new version and same account address', async () => {
-      const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
+      console.log(await factoryNow.VERSION())
+      const beforeAccountAddr = await factoryNow.getAddressLegacy(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
       const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
-      const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
+      const factoryV200 = await upgrades.upgradeProxy(factoryNow.address, UpgradeContract)
 
-      await factory.setImplementation_1_5_1(implementationV200.address)
-      expect(await factory.VERSION()).to.eql('2.0.0')
+      await factoryNow.setImplementation_1_5_1(implementationV200.address)
+      expect(await factoryNow.VERSION()).to.eql('2.0.0')
 
-      const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
+      const afterAccountAddr = await factoryV200.getAddressLegacy(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), AccountSalt)
       expect(beforeAccountAddr).to.eql(afterAccountAddr)
     })
 
@@ -673,16 +682,21 @@ describe('BloctoAccount Upgrade Test', function () {
     })
 
     it('factory getAddress sould be same', async () => {
-      const addrFromFacotry = await factory.getAddress(
-        await cosignerWallet.getAddress(),
-        await recoverWallet.getAddress(),
-        AccountSalt)
+      const forKeccak = ethers.utils.hexConcat([
+        ethers.utils.hexZeroPad(BigNumber.from(AccountSalt).toHexString(), 32),
+        cosignerWallet.address, recoverWallet.address
+      ])
+
+      const newSalt = keccak256(Buffer.from(ethers.utils.arrayify(forKeccak)))
+
+      const addrFromFacotry = await factoryNow.getAddress_1_5_1(newSalt)
+
       expect(addrFromFacotry).to.eql(accountV200.address)
     })
 
     it('new account get new version', async () => {
       const randomSalt = 538
-      const accountNew = await testCreateAccount(randomSalt)
+      const accountNew = await testCreateAccount(randomSalt, 0, factoryNow)
 
       expect(await accountNew.VERSION()).to.eql('2.0.0')
     })
@@ -866,23 +880,6 @@ describe('BloctoAccount Upgrade Test', function () {
   })
 
   // for Blocto Account Factory
-  describe('should upgrade factory to different version implementation', () => {
-    const TestSalt = 135341
-
-    it('new factory get new version but same account address', async () => {
-      const beforeAccountAddr = await factory.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
-
-      const UpgradeContract = await ethers.getContractFactory('TestBloctoAccountFactoryV200')
-      const factoryV200 = await upgrades.upgradeProxy(factory.address, UpgradeContract)
-
-      expect(await factoryV200.VERSION()).to.eql('2.0.0')
-
-      const afterAccountAddr = await factoryV200.getAddress(await cosignerWallet.getAddress(), await recoverWallet.getAddress(), TestSalt)
-      expect(beforeAccountAddr).to.eql(afterAccountAddr)
-    })
-  })
-
-  // for Blocto Account Factory
   describe('factory functions', () => {
     let factory: BloctoAccountFactory
     let factoryCreateAccountRole: BloctoAccountFactory
@@ -908,17 +905,15 @@ describe('BloctoAccount Upgrade Test', function () {
 
     it('should revert if sender is not grant role for createAccount', async () => {
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, 0)
+
       await expect(
-        createAccount(
-          ethersSigner,
+        factory.createAccountLegacy(
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
           await recoverWallet.getAddress(),
           BigNumber.from(767),
           pxIndexWithParity,
-          px,
-          factory
-        )
+          px)
       ).to.revertedWith('caller is not a create account role')
     })
 
@@ -946,7 +941,7 @@ describe('BloctoAccount Upgrade Test', function () {
       const [px2, pxIndexWithParity2] = getMergedKey(authorizedWallet2, cosignerWallet2, 1)
 
       await expect(
-        factory.createAccount2([authorizedWallet2.address, authorizedWallet22.address],
+        factory.createAccount2Legacy([authorizedWallet2.address, authorizedWallet22.address],
           cosignerWallet2.address, recoverWallet2.address,
           510, // random salt
           [pxIndexWithParity, pxIndexWithParity2],
@@ -1059,6 +1054,21 @@ describe('BloctoAccount Upgrade Test', function () {
       expect(await factory.hasRole(await factory.CREATE_ACCOUNT_ROLE(), createAccountRoleEOA.address)).true
       await fund(createAccountRoleEOA.address)
       factoryCreateAccountRole = BloctoAccountFactory__factory.connect(factory.address, createAccountRoleEOA)
+    })
+
+    it('should create account with grant role', async () => {
+      // create account with createAccountWallet
+      const mergedKeyIndex = 0
+      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
+
+      await factoryCreateAccountRole.createAccountLegacy(
+        await authorizedWallet.getAddress(),
+        await cosignerWallet.getAddress(),
+        await recoverWallet.getAddress(),
+        '0x1234567890',
+        pxIndexWithParity,
+        px
+      )
     })
 
     it('should create account and run tx from createAccountWithInvoke2', async () => {
@@ -1208,33 +1218,6 @@ describe('BloctoAccount Upgrade Test', function () {
     })
   })
 
-  describe('should create account if account has create account role', () => {
-    it('shoule crate account with grant role', async () => {
-      // create account
-      const createAccountWallet = await createTmpAccount()
-      await fund(createAccountWallet.address)
-      // grant account role
-      await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), createAccountWallet.address)
-      expect(await factory.hasRole(await factory.CREATE_ACCOUNT_ROLE(), createAccountWallet.address)).true
-
-      // create account with createAccountWallet
-      const factoryWithCreateAccount = BloctoAccountFactory__factory.connect(factory.address, createAccountWallet)
-      const mergedKeyIndex = 0
-      const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
-
-      await createAccount(
-        ethersSigner,
-        await authorizedWallet.getAddress(),
-        await cosignerWallet.getAddress(),
-        await recoverWallet.getAddress(),
-        BigNumber.from(6346346),
-        pxIndexWithParity,
-        px,
-        factoryWithCreateAccount
-      )
-    })
-  })
-
   describe('EOA entrypoint for _call fail test', () => {
     let account: BloctoAccount
     let accountLinkEntrypoint: BloctoAccount
@@ -1256,12 +1239,12 @@ describe('BloctoAccount Upgrade Test', function () {
         [implementation, entrypointEOA.address, await ethersSigner.getAddress()],
         { initializer: 'initialize' }, create3Factory, ethersSigner, create3Salt)
       await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
-
+      await factory.setImplementation_1_5_1(implementation)
       // create account with entrypoint EOA
       const mergedKeyIndex = 0
       const [px, pxIndexWithParity] = getMergedKey(authorizedWallet, cosignerWallet, mergedKeyIndex)
 
-      account = await createAccount(
+      account = await createAccountV151(
         ethersSigner,
         await authorizedWallet.getAddress(),
         await cosignerWallet.getAddress(),
