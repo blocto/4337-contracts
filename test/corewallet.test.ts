@@ -125,7 +125,6 @@ describe('BloctoAccount CoreWallet Test', function () {
       accountSalt,
       getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPoint.address])
     )
-
     expect((await ethers.provider.getCode(implementation))).not.equal('0x')
 
     // account factory
@@ -136,7 +135,7 @@ describe('BloctoAccount CoreWallet Test', function () {
     await factory.grantRole(await factory.CREATE_ACCOUNT_ROLE(), await ethersSigner.getAddress())
 
     // testERC20 deploy
-    testERC20 = await new TestERC20__factory(ethersSigner).deploy('TestERC20', 'TST', 18)
+    testERC20 = await new TestERC20__factory(ethersSigner).deploy('TestERC20', 'TST', 18, await ethersSigner.getAddress())
   })
 
   describe('emergency recovery performed - emergencyRecovery', () => {

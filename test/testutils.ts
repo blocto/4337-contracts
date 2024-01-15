@@ -38,6 +38,13 @@ export const ShowCreateAccountGas = false
 
 const EntryPointV060 = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 
+export enum RevertFlag {
+  NoRevert = 0, // b00
+  Revert = 1, // b01
+  PointNoRevert = 2, // b10
+  PointWithRevert = 3, // b11
+}
+
 export function tonumber (x: any): number {
   try {
     return parseFloat(x.toString())
@@ -336,6 +343,26 @@ export const txData = (revert: number, to: string, amount: BigNumber, dataBuff: 
   // don't revert for now
   revertBuff.writeUInt8(revert)
   dataArr.push(revertBuff)
+  // 'to' is not padded (20 bytes)
+  dataArr.push(Buffer.from(to.replace('0x', ''), 'hex')) // address as string
+  // value (32 bytes)
+  dataArr.push(hexZeroPad(amount.toHexString(), 32))
+  // data length (0)
+  // dataArr.push(utils.numToBuffer(dataBuff.length))
+  const hex = Buffer.from(dataBuff.replace('0x', ''), 'hex')
+  dataArr.push(hexZeroPad(hexlify(hex.length), 32))
+  if (hex.length > 0) {
+    dataArr.push(hex)
+  }
+
+  return concat(dataArr)
+}
+
+export const txAppendData = (preData: Uint8Array, to: string, amount: BigNumber, dataBuff: string): Uint8Array => {
+  // revert_flag (1), to (20), value (32), data length (32), data
+  const dataArr = []
+  // previous data
+  dataArr.push(preData)
   // 'to' is not padded (20 bytes)
   dataArr.push(Buffer.from(to.replace('0x', ''), 'hex')) // address as string
   // value (32 bytes)

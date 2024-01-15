@@ -666,9 +666,76 @@ contract CoreWallet is IERC1271 {
         revert ExecutionResult(true);
     }
 
+    /// @dev Internal invoke
+    /// @param operationHash The hash of the operation
+    /// @param data The data to send to the `call()` operation
+    function internalInvoke(bytes32 operationHash, bytes calldata data) internal {
+        // At an absolute minimum, the data field must be at least 85 bytes
+        // <revert(1), to_address(20), value(32), data_length(32)>
+        require(data.length >= 85, "data field too short");
+
+        bytes1 flag = data[0];
+
+        bytes memory executeBlock;
+        if ((flag & 0x02) == 0) {
+            // fee block, first op for fee deduction
+            assembly {
+                //  <revert(1), to_address(20), value(32), data_length(32)>
+                // 53 = 1 + 20 + 32, 85 = 53 + 32
+                let callLen := calldataload(add(data.offset, 53))
+                calldatacopy(mload(0x40), add(data.offset, 85), callLen)
+                // call(g, a, v, in, insize, out, outsize)
+                // check the result (0 == reverted)
+                if eq(
+                    0,
+                    call(
+                        gas(),
+                        shr(96, calldataload(add(data.offset, 1))),
+                        calldataload(add(data.offset, 21)),
+                        mload(0x40),
+                        callLen,
+                        0,
+                        0
+                    )
+                ) { revert(add("fee deduct failed", 32), mload("fee deduct failed")) }
+                // copy left data to executeBlock
+                let leftLen := sub(data.length, add(85, callLen))
+                mstore(executeBlock, leftLen)
+                calldatacopy(add(executeBlock, 0x20), add(add(data.offset, 85), callLen), leftLen)
+            }
+            // check revert flag
+            if ((flag & 0x01) == 0) {
+                internalInvokeCall(operationHash, executeBlock, false);
+            } else {
+                // atmoic operation, revert if any operation failed
+                try this.invokeFromSelf(operationHash, executeBlock) {}
+                catch {
+                    emit InvocationSuccess(operationHash, 1, 1);
+                }
+            }
+        } else {
+            // fee deduct using Blocto ponits, copy data exclude first 1 byte (revert flag)
+            assembly {
+                let leftLen := sub(data.length, 1)
+                mstore(executeBlock, leftLen)
+                calldatacopy(add(executeBlock, 0x20), add(data.offset, 1), leftLen)
+            }
+
+            internalInvokeCall(operationHash, executeBlock, (flag == 0x03) ? true : false);
+        }
+    }
+
+    /// @dev this is external but only invoked by this contract
+    /// @param operationHash The hash of the operation
+    /// @param data The data to send to the `call()` operation
+    function invokeFromSelf(bytes32 operationHash, bytes memory data) external onlyInvoked {
+        internalInvokeCall(operationHash, data, true);
+    }
+
     /// @dev Internal invoke call,
     /// @param operationHash The hash of the operation
     /// @param data The data to send to the `call()` operation
+    /// @param revertFlag revert or not if any operation failed
     ///  The data is prefixed with a global 1 byte revert flag
     ///  If revert is 1, then any revert from a `call()` operation is rethrown.
     ///  Otherwise, the error is recorded in the `result` field of the `InvocationSuccess` event.
@@ -676,7 +743,7 @@ contract CoreWallet is IERC1271 {
     ///  of 1 or more tightly packed tuples:
     ///  `<target(20),amount(32),datalength(32),data>`
     ///  If `datalength == 0`, the data field must be omitted
-    function internalInvoke(bytes32 operationHash, bytes memory data) internal {
+    function internalInvokeCall(bytes32 operationHash, bytes memory data, bool revertFlag) internal {
         // keep track of the number of operations processed
         uint256 numOps;
         // keep track of the result of each operation as a bit
@@ -689,7 +756,6 @@ contract CoreWallet is IERC1271 {
 
         // At an absolute minimum, the data field must be at least 85 bytes
         // <revert(1), to_address(20), value(32), data_length(32)>
-        require(data.length >= 85, invalidLengthMessage);
 
         // Forward the call onto its actual target. Note that the target address can be `self` here, which is
         // actually the required flow for modifying the configuration of the authorized keys and recovery address.
@@ -699,14 +765,8 @@ contract CoreWallet is IERC1271 {
             // A cursor pointing to the revert flag, starts after the length field of the data object
             let memPtr := add(data, 32)
 
-            // The revert flag is the leftmost byte from memPtr
-            let revertFlag := byte(0, mload(memPtr))
-
             // A pointer to the end of the data object
             let endPtr := add(memPtr, mload(data))
-
-            // Now, memPtr is a cursor pointing to the beginning of the current sub-operation
-            memPtr := add(memPtr, 1)
 
             // Loop through data, parsing out the various sub-operations
             for {} lt(memPtr, endPtr) {} {

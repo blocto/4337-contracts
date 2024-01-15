@@ -29,7 +29,10 @@ import {
   getMergedKey,
   signMessageWithoutChainId,
   signForInovke2,
-  get151SaltFromAddress
+  get151SaltFromAddress,
+  RevertFlag,
+  txAppendData,
+  logBytes
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad, concat } from '@ethersproject/bytes'
@@ -60,8 +63,7 @@ describe('BloctoAccount Test', function () {
 
   let testERC20: TestERC20
 
-  // const NowVersion = '1.5.2'
-  const NextVersion = '1.5.2'
+  const NextVersion = '1.5.3'
 
   let account: BloctoAccount
 
@@ -135,11 +137,11 @@ describe('BloctoAccount Test', function () {
     return await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
   }
 
-  async function mint1000testERC20 (target: string, leastAmount: BigNumber): Promise<BigNumber> {
-    const before = await testERC20.balanceOf(target)
+  async function mint1000testERC20 (target: string, leastAmount: BigNumber, erc20: TestERC20 = testERC20): Promise<BigNumber> {
+    const before = await erc20.balanceOf(target)
     if (before.lt(leastAmount)) {
-      console.log(`mint 1000 testERC20 to ${target}`)
-      const mintWait = await testERC20.mint(target, parseEther('1000'))
+      console.log(`mint 1000 ${await erc20.symbol()} to ${target}`)
+      const mintWait = await erc20.mint(target, parseEther('1000'))
       await mintWait.wait()
       return await before.add(parseEther('1000'))
     }
@@ -151,7 +153,7 @@ describe('BloctoAccount Test', function () {
     console.log('test with signer: ', await ethersSigner.getAddress());
     // 3 wallet
     [authorizedWallet, cosignerWallet, recoverWallet] = createAuthorizedCosignerRecoverWallet()
-    // await fund(cosignerWallet.address)
+    await fund(cosignerWallet.address)
     // 4337
     entryPoint = await deployEntryPoint()
 
@@ -822,6 +824,145 @@ describe('BloctoAccount Test', function () {
       } else {
         console.log('NOTE: this test is NOT check consistent address of createAccount2_1_5_1')
       }
+    })
+  })
+
+  describe('point and revert flag', () => {
+    // fake for fee token
+    let dai: TestERC20
+    const feeReceiver = createTmpAccount(7)
+    const erc20Receiver = createTmpAccount(8)
+    const testFee = parseEther('10')
+
+    function fee10DAI (revertFlag: RevertFlag): Uint8Array {
+      // const revertFlag = isRevert ? RevertFlag.Revert : RevertFlag.NoRevert
+      return txData(revertFlag, dai.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [feeReceiver.address, testFee]))
+    }
+
+    // tx 1: send 10 DAI to feeReceiver, tx 2: send 1 ERC20 to erc20Receiver
+    async function feeWithSendERC20 (revertFlag: RevertFlag): Promise<[BigNumber, Uint8Array, string]> {
+      const feeData = fee10DAI(revertFlag)
+
+      const erc20TransferData = txAppendData(feeData, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [erc20Receiver.address, ONE_ETH]))
+
+      const newNonce = (await account.nonce()).add(1)
+
+      const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet, true, 0)
+      return [newNonce, erc20TransferData, sign]
+    }
+
+    async function clearOutBalance (erc20: TestERC20, targetAccount: BloctoAccount): Promise<void> {
+      const balance = await erc20.balanceOf(targetAccount.address)
+      if (balance.gt(0)) {
+        console.log(`${targetAccount.address} clear out balance(${balance.toString()}) of ${await erc20.symbol()}`)
+        const erc20Receiver = createTmpAccount()
+        const erc20TransferData = txData(1, erc20.address, BigNumber.from(0),
+          erc20.interface.encodeFunctionData('transfer', [erc20Receiver.address, balance]))
+
+        const newNonce = (await targetAccount.nonce()).add(1)
+        const sign = await signForInovke2(targetAccount.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet, true, 0)
+        await targetAccount.invoke2(newNonce, erc20TransferData, sign)
+      }
+    }
+
+    before(async function () {
+      // testERC20 deploy
+      const testERC20Salt = hexZeroPad(Buffer.from('FakeDAI', 'utf-8'), 32)
+      const fakeDAIAddr = await create3Factory.getDeployed(await ethersSigner.getAddress(), testERC20Salt)
+
+      // deploy DAI if not exist
+      if ((await ethers.provider.getCode(fakeDAIAddr)) !== '0x') {
+        console.log(`Using Existed FakeDAI (${fakeDAIAddr})!`)
+      } else {
+        console.log(`Deploying to FakeDAI  (${fakeDAIAddr})...`)
+        await create3Factory.deploy(
+          testERC20Salt,
+          getDeployCode(new TestERC20__factory(), ['FakeDAI', 'FAKEDAI', 18, await ethersSigner.getAddress()])
+        )
+      }
+      dai = await TestERC20__factory.connect(fakeDAIAddr, ethersSigner)
+
+      // clear out balance
+      await clearOutBalance(testERC20, account)
+      await clearOutBalance(dai, account)
+    })
+
+    it('should revert if Fee not enough with RevertFlag.NoRevert(b00)', async () => {
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.NoRevert)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.be.reverted
+    })
+
+    it('should revert if Fee not enough with RevertFlag.Revert(b01)', async () => {
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.Revert)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.be.reverted
+    })
+
+    it('should revert if first tx fail with RevertFlag.PointWithRevert(b11)', async () => {
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.PointWithRevert)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.be.reverted
+    })
+
+    it('should revert if second tx fail with RevertFlag.PointWithRevert(b11)', async () => {
+      const actBeforeDAI = await mint1000testERC20(account.address, testFee, dai)
+
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.PointWithRevert)
+      await expect(
+        account.invoke2(newNonce, erc20TransferData, sign)
+      ).to.be.reverted
+
+      // same as before because revert
+      expect(await dai.balanceOf(account.address)).to.equal(actBeforeDAI)
+    })
+
+    it('should NO revert if second tx fail with RevertFlag.PointWithRevert(b10)', async () => {
+      const actBeforeDAI = await mint1000testERC20(account.address, testFee, dai)
+      const recevierBeforeDAI = await dai.balanceOf(feeReceiver.address)
+
+      const actBeforeTestERC20 = await testERC20.balanceOf(account.address)
+
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.PointNoRevert)
+      const tx = await account.invoke2(newNonce, erc20TransferData, sign)
+      const receipt = await tx.wait()
+      if (ShowGasUsage) {
+        console.log('No revert tx gasUsed: ', receipt.gasUsed)
+      }
+      // DAI
+      expect(await dai.balanceOf(account.address)).to.equal(actBeforeDAI.sub(testFee))
+      expect(await dai.balanceOf(feeReceiver.address)).to.equal(recevierBeforeDAI.add(testFee))
+      // ERC20 no change
+      expect(await testERC20.balanceOf(account.address)).to.equal(actBeforeTestERC20)
+    })
+
+    it('should use 10 DAI as fee and send 1 ERC20', async () => {
+      // const erc20Receiver = createTmpAccount(8)
+      // mint 1000 DAI & testERC20 (at least 10 and 1)to account
+      const actBeforeFee = await mint1000testERC20(account.address, testFee, dai)
+      const actBefore = await mint1000testERC20(account.address, parseEther('1'), testERC20)
+
+      const beforeFee = await dai.balanceOf(feeReceiver.address)
+      const beforeRecevive = await testERC20.balanceOf(erc20Receiver.address)
+
+      // const sign = await signForInovke2(account.address, newNonce, erc20TransferData, authorizedWallet, cosignerWallet, true, 0)
+      const [newNonce, erc20TransferData, sign] = await feeWithSendERC20(RevertFlag.Revert)
+      const tx = await account.invoke2(newNonce, erc20TransferData, sign)
+      const receipt = await tx.wait()
+      if (ShowGasUsage) {
+        console.log('send erc20 invoke2 gasUsed (Schnorr): ', receipt.gasUsed)
+      }
+      // erc20
+      expect(await testERC20.balanceOf(account.address)).to.equal(actBefore.sub(ONE_ETH))
+      expect(await testERC20.balanceOf(erc20Receiver.address)).to.equal(beforeRecevive.add(ONE_ETH))
+      // fee
+      expect(await dai.balanceOf(account.address)).to.equal(actBeforeFee.sub(testFee))
+      expect(await dai.balanceOf(feeReceiver.address)).to.equal(beforeFee.add(testFee))
     })
   })
 })
