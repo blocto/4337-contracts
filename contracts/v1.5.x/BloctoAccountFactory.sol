@@ -11,7 +11,7 @@ import "./BloctoAccount.sol";
 // BloctoAccountFactory for creating BloctoAccountProxy
 contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
     /// @notice this is the version of this contract.
-    string public constant VERSION = "1.5.2";
+    string public constant VERSION = "1.5.3";
     /// @notice create account role for using createAccount() and createAccount2()
     bytes32 public constant CREATE_ACCOUNT_ROLE = keccak256("CREATE_ACCOUNT_ROLE");
     bytes constant BLOCTO_ACCOUNT_PROXY =
@@ -35,6 +35,8 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         bytes data;
         bytes signature;
     }
+
+    error ExecutionResult(bool targetSuccess);
 
     /// @notice initialize
     /// @param _bloctoAccountImplementation the implementation address for BloctoAccountCloneableWallet
@@ -260,5 +262,61 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
             _authorizedAddresses, _cosigner, _recoveryAddress, _salt, _mergedKeyIndexWithParitys, _mergedKeys
         );
         ret.invoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature);
+    }
+
+    /// @notice simulate for creating an account and run first transaction, it combine from createAccount_1_5_1() of this and invoke2() from CoreWallet
+    /// @param _authorizedAddress the initial authorized address, must not be zero!
+    /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
+    /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _salt salt for create account (used for address calculation in create2)
+    /// @param _mergedKeyIndexWithParity the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKey the corresponding mergedKey (using Schnorr merged key)
+    /// @param _invoke2Data the invoke2 data {nonce, data, signature}
+    function simulateCreateAccountWithInvoke2(
+        // same input as createAccount_1_5_1() of this contract
+        address _authorizedAddress,
+        address _cosigner,
+        address _recoveryAddress,
+        bytes32 _salt,
+        uint8 _mergedKeyIndexWithParity,
+        bytes32 _mergedKey,
+        // same input as invoke2() of CoreWallet.sol
+        Invoke2Data calldata _invoke2Data
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
+        ret = createAccount_1_5_1(
+            _authorizedAddress, _cosigner, _recoveryAddress, _salt, _mergedKeyIndexWithParity, _mergedKey
+        );
+        ret.invoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature);
+
+        // always revert
+        revert ExecutionResult(true);
+    }
+
+    /// @notice simulate for creating an account with multiple devices and run first transaction, it combine from createAccount2_1_5_1() of this and invoke2() from CoreWallet
+    /// @param _authorizedAddresses the initial authorized addresses, must not be zero!
+    /// @param _cosigner the initial cosigning address for `_authorizedAddress`, can be equal to `_authorizedAddress`
+    /// @param _recoveryAddress the initial recovery address for the wallet, can be address(0)
+    /// @param _salt salt for create account (used for address calculation in create2)
+    /// @param _mergedKeyIndexWithParitys the corresponding index of mergedKeys = authVersion + _mergedIndex
+    /// @param _mergedKeys the corresponding mergedKey
+    /// @param _invoke2Data the invoke2 data {nonce, data, signature}
+    function simulateCreateAccount2WithInvoke2(
+        // same input as createAccount2_1_5_1() of this contract
+        address[] calldata _authorizedAddresses,
+        address _cosigner,
+        address _recoveryAddress,
+        bytes32 _salt,
+        uint8[] calldata _mergedKeyIndexWithParitys,
+        bytes32[] calldata _mergedKeys,
+        // same input as invoke2() of CoreWallet.sol
+        Invoke2Data calldata _invoke2Data
+    ) external onlyCreateAccountRole returns (BloctoAccount ret) {
+        ret = createAccount2_1_5_1(
+            _authorizedAddresses, _cosigner, _recoveryAddress, _salt, _mergedKeyIndexWithParitys, _mergedKeys
+        );
+        ret.invoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature);
+
+        // always revert
+        revert ExecutionResult(true);
     }
 }

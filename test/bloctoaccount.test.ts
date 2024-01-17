@@ -689,7 +689,7 @@ describe('BloctoAccount Test', function () {
     it('should create account and run tx from createAccount2WithInvoke2', async () => {
       // prepare account auth
       const [authorizedEOA, cosignerEOA, recoverEOA] = createAuthorizedCosignerRecoverWallet()
-      const [authorizedEOA2, cosignerEOA2, _] = createAuthorizedCosignerRecoverWallet()
+      const [authorizedEOA2, cosignerEOA2] = createAuthorizedCosignerRecoverWallet()
       const salt = randNumber()
       console.log('Using salt ', salt)
       const newSalt = get151SaltFromAddress(salt, cosignerEOA.address, recoverEOA.address)
@@ -1035,6 +1035,78 @@ describe('BloctoAccount Test', function () {
 
       expect(await testERC20.balanceOf(account.address)).to.equal(actBefore.sub(amount))
       expect(await testERC20.balanceOf(erc20Receiver.address)).to.equal(beforeRecevive.add(amount))
+    })
+  })
+
+  describe('simulate create account', () => {
+    // simulate factory
+    it('should simulate create account and run tx from createAccountWithInvoke2', async () => {
+      // prepare account auth
+      const [authorizedEOA, cosignerEOA, recoverEOA] = createAuthorizedCosignerRecoverWallet2()
+      const salt = randNumber()
+      const newSalt = get151SaltFromAddress(salt, cosignerEOA.address, recoverEOA.address)
+      const predictAddr151 = await factory.getAddress_1_5_1(newSalt)
+      const [px, pxIndexWithParity] = getMergedKey(authorizedEOA, cosignerEOA, 0)
+
+      // prepare account first tx
+      const erc20Receiver = createTmpAccount()
+      const mintTx = await testERC20.mint(predictAddr151, TWO_ETH)
+      await mintTx.wait()
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [erc20Receiver.address, ONE_ETH]))
+
+      const newNonce = BigNumber.from(1)
+      const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
+
+      console.log('simulating createAccountWithInvoke2...')
+      const errorArgs = await factory.callStatic.simulateCreateAccountWithInvoke2(
+        await authorizedEOA.getAddress(),
+        await cosignerEOA.getAddress(),
+        await recoverEOA.getAddress(),
+        newSalt,
+        pxIndexWithParity,
+        px,
+        { nonce: newNonce, data: erc20TransferData, signature: sign }
+      ).catch(e => e.errorArgs)
+      // targetSuccess should be true
+      expect(errorArgs.targetSuccess).to.be.true
+      // the account should NOT be created
+      expect(await ethers.provider.getCode(predictAddr151)).to.equal('0x')
+    })
+
+    it('should simulate create account and run tx from createAccount2WithInvoke2', async () => {
+      // prepare account auth
+      const [authorizedEOA, cosignerEOA, recoverEOA] = createAuthorizedCosignerRecoverWallet()
+      const [authorizedEOA2, cosignerEOA2] = createAuthorizedCosignerRecoverWallet()
+      const salt = randNumber()
+      const newSalt = get151SaltFromAddress(salt, cosignerEOA.address, recoverEOA.address)
+      const predictAddr151 = await factory.getAddress_1_5_1(newSalt)
+      const [px, pxIndexWithParity] = getMergedKey(authorizedEOA, cosignerEOA, 0)
+      const [px2, pxIndexWithParity2] = getMergedKey(authorizedEOA2, cosignerEOA2, 1)
+
+      // prepare account first tx
+      const erc20Receiver = createTmpAccount()
+      const mintTx = await testERC20.mint(predictAddr151, TWO_ETH)
+      await mintTx.wait()
+      const erc20TransferData = txData(1, testERC20.address, BigNumber.from(0),
+        testERC20.interface.encodeFunctionData('transfer', [erc20Receiver.address, ONE_ETH]))
+
+      const newNonce = BigNumber.from(1)
+      const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
+
+      console.log('simulating createAccount2WithInvoke2...')
+      const errorArgs = await factory.callStatic.simulateCreateAccount2WithInvoke2(
+        [authorizedEOA.address, authorizedEOA2.address],
+        cosignerEOA.address, recoverEOA.address,
+        newSalt,
+        [pxIndexWithParity, pxIndexWithParity2],
+        [px, px2],
+        { nonce: newNonce, data: erc20TransferData, signature: sign }
+      ).catch(e => e.errorArgs)
+      // targetSuccess should be true
+      expect(errorArgs.targetSuccess).to.be.true
+      // the account should NOT be created
+      expect(await ethers.provider.getCode(predictAddr151)).to.equal('0x')
     })
   })
 })
