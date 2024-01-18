@@ -45,6 +45,9 @@ contract CoreWallet is IERC1271 {
     /// @notice s of signature must be less than S_MAX refer from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/f29307cfe08c7d76d96a38bf94bab5fec223c943/contracts/utils/cryptography/ECDSA.sol#L156
     bytes32 internal constant S_MAX = bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0);
 
+    /// @notice This is for point and revert flag b01 when any meta tx fail because of atomicity
+    uint256 internal constant FEE_SUCCESS_META_TXS_FAIL = type(uint256).max - 1;
+
     /// @notice The pre-shifted authVersion (to get the current authVersion as an integer,
     ///  shift this value right by 160 bits). Starts as `1 << 160` (`AUTH_VERSION_INCREMENTOR`)
     ///  See the comment on the `authorizations` variable for how this is used.
@@ -265,23 +268,6 @@ contract CoreWallet is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-
-        address delegate = delegates[msg.sig];
-        require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
-
-        // We have found a delegate contract that is responsible for the method signature of
-        // this call. Now, pass along the calldata of this CALL to the delegate contract.
-        assembly {
-            calldatacopy(0, 0, calldatasize())
-            let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
-            returndatacopy(0, 0, returndatasize())
-
-            // If the delegate reverts, we revert. If the delegate does not revert, we return the data
-            // returned by the delegate to the original caller.
-            switch result
-            case 0 { revert(0, returndatasize()) }
-            default { return(0, returndatasize()) }
-        }
     }
 
     // solhint-disable-next-line no-empty-blocks
@@ -289,23 +275,6 @@ contract CoreWallet is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-    }
-
-    /// @notice Adds or removes dynamic support for an interface. Can be used in 3 ways:
-    ///   - Add a contract "delegate" that implements a single function
-    ///   - Remove delegate for a function
-    ///   - Specify that an interface ID is "supported", without adding a delegate. This is
-    ///     used for composite interfaces when the interface ID is not a single method ID.
-    /// @dev Must be called through `invoke`
-    /// @param _interfaceId The ID of the interface we are adding support for
-    /// @param _delegate Either:
-    ///    - the address of a contract that implements the function specified by `_interfaceId`
-    ///      for adding an implementation for a single function
-    ///    - 0 for removing an existing delegate
-    ///    - COMPOSITE_PLACEHOLDER for specifying support for a composite interface
-    function setDelegate(bytes4 _interfaceId, address _delegate) external onlyInvoked {
-        delegates[_interfaceId] = _delegate;
-        emit DelegateUpdated(_interfaceId, _delegate);
     }
 
     /// @notice Configures an authorizable address. Can be used in four ways:
@@ -710,7 +679,7 @@ contract CoreWallet is IERC1271 {
                 // atmoic operation, revert if any operation failed
                 try this.invokeFromSelf(operationHash, executeBlock) {}
                 catch {
-                    emit InvocationSuccess(operationHash, 1, 1);
+                    emit InvocationSuccess(operationHash, FEE_SUCCESS_META_TXS_FAIL, 1);
                 }
             }
         } else {
