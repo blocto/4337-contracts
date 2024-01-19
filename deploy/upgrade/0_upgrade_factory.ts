@@ -12,7 +12,7 @@ async function main (): Promise<void> {
   // deploy BloctoAccountFactory to next version
   const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
   const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
-  // console.log('Proxy imported from:', deployment.address)
+  console.log('Proxy imported from:', deployment.address)
   await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'always' })
   console.log('sleep 16 seconds for chain sync...')
   await new Promise(f => setTimeout(f, 16000))
