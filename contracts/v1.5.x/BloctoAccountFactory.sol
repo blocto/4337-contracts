@@ -291,7 +291,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         try ret.simulateInvoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature) {}
         catch (bytes memory reason) {
             // NOTE: this ExecutionResult from CoreWallet.sol
-            // success bytes(36), bytes4 selector from keccak256("ExecutionSuccess(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
+            // success bytes(36), bytes4 selector from keccak256("ExecutionResult(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
             if (
                 reason.length == 36 && uint8(reason[35]) == 1
                     && bytes4(reason) == bytes4(keccak256("ExecutionResult(bool)"))
@@ -329,7 +329,7 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         try ret.simulateInvoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature) {}
         catch (bytes memory reason) {
             // NOTE: this ExecutionResult from CoreWallet.sol
-            // success bytes(36), bytes4 selector from keccak256("ExecutionSuccess(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
+            // success bytes(36), bytes4 selector from keccak256("ExecutionResult(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
             if (
                 reason.length == 36 && uint8(reason[35]) == 1
                     && bytes4(reason) == bytes4(keccak256("ExecutionResult(bool)"))
