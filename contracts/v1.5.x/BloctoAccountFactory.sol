@@ -36,7 +36,8 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         bytes signature;
     }
 
-    error ExecutionResult(bool targetSuccess);
+    /// @notice for simulateCreateAccountWithInvoke2 & simulateCreateAccount2WithInvoke2
+    error CreateAccountWithInvoke(bool targetSuccess);
 
     /// @notice initialize
     /// @param _bloctoAccountImplementation the implementation address for BloctoAccountCloneableWallet
@@ -286,10 +287,20 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         ret = createAccount_1_5_1(
             _authorizedAddress, _cosigner, _recoveryAddress, _salt, _mergedKeyIndexWithParity, _mergedKey
         );
-        ret.invoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature);
-
         // always revert
-        revert ExecutionResult(true);
+        try ret.simulateInvoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature) {}
+        catch (bytes memory reason) {
+            // NOTE: this ExecutionResult from CoreWallet.sol
+            // success bytes(36), bytes4 selector from keccak256("ExecutionSuccess(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
+            if (
+                reason.length == 36 && uint8(reason[35]) == 1
+                    && bytes4(reason) == bytes4(keccak256("ExecutionResult(bool)"))
+            ) {
+                revert CreateAccountWithInvoke(true);
+            }
+        }
+
+        revert CreateAccountWithInvoke(false);
     }
 
     /// @notice simulate for creating an account with multiple devices and run first transaction, it combine from createAccount2_1_5_1() of this and invoke2() from CoreWallet
@@ -314,9 +325,19 @@ contract BloctoAccountFactory is Initializable, AccessControlUpgradeable {
         ret = createAccount2_1_5_1(
             _authorizedAddresses, _cosigner, _recoveryAddress, _salt, _mergedKeyIndexWithParitys, _mergedKeys
         );
-        ret.invoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature);
-
         // always revert
-        revert ExecutionResult(true);
+        try ret.simulateInvoke2(_invoke2Data.nonce, _invoke2Data.data, _invoke2Data.signature) {}
+        catch (bytes memory reason) {
+            // NOTE: this ExecutionResult from CoreWallet.sol
+            // success bytes(36), bytes4 selector from keccak256("ExecutionSuccess(bool)") 0x2a6b3136 + btyes32 0x0000000000000000000000000000000000000000000000000000000000000001
+            if (
+                reason.length == 36 && uint8(reason[35]) == 1
+                    && bytes4(reason) == bytes4(keccak256("ExecutionResult(bool)"))
+            ) {
+                revert CreateAccountWithInvoke(true);
+            }
+        }
+
+        revert CreateAccountWithInvoke(false);
     }
 }
