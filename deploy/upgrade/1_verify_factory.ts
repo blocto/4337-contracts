@@ -1,26 +1,15 @@
-// import { getImplementationAddress } from '@openzeppelin/upgrades-core'
+import { getImplementationAddress } from '@openzeppelin/upgrades-core'
+import hre, { ethers } from 'hardhat'
 
-import { ethers, upgrades } from 'hardhat'
-import {
-  BloctoAccountFactory__factory,
-  BloctoAccountFactory
-} from '../../typechain'
-
-const BloctoAccountFactoryAddr = '0x0D98dc00DaccA2d2b4f7b356Eef42601E2091cFa'
+const BloctoAccountFactoryAddr = '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1'
 
 async function main (): Promise<void> {
   // verify BloctoAccountFactory (if proxy)
-  // await hre.run('verify:verify', {
-  //   address: BloctoAccountFactoryAddr,
-  //   contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
-  // })
-  // const [owner] = await ethers.getSigners()
-  // const factory = await BloctoAccountFactory__factory.connect(BloctoAccountFactoryAddr, owner)
-  // console.log(await factory.implementation())
-  console.log('verify factory')
-  const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-
-  await upgrades.validateImplementation(UpgradeContract)
+  const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
+  await hre.run('verify:verify', {
+    address: accountFactoryImplAddress,
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
+  })
 }
 
 // We recommend this pattern to be able to use async/await everywhere

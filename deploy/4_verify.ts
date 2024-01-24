@@ -13,7 +13,7 @@ async function main (): Promise<void> {
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: BloctoAccountCloneableWalletAddr,
-    contract: 'contracts/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
+    contract: 'contracts/v1.5.x/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
       EntryPoint
     ]
@@ -23,7 +23,7 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 
   //  erify VerifyingPaymaster Contract

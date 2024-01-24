@@ -7,9 +7,8 @@ import {
 } from '../../typechain'
 import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
-import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-const NextVersion = '1.5.2'
+const NextVersion = '1.5.2.1'
 // entrypoint from 4337 official (0.6.0)
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
@@ -36,14 +35,13 @@ async function main (): Promise<void> {
     console.log(`BloctowalletCloneableWallet ${NextVersion} WAS deployed to: ${implementation}`)
   }
 
-  // deploy BloctoAccountFactory to next version
-  // const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-  // const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
-  // console.log('Proxy imported from:', deployment.address)
-  // // const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'never' })
+  console.log('sleep 15 seconds for chain sync...')
+  await new Promise(f => setTimeout(f, 15000))
+
+  // no upgrade in new version
   const factory = BloctoAccountFactory__factory.connect(BloctoAccountFactoryAddr, owner)
   await factory.setImplementation_1_5_1(implementation)
-  console.log('setImplementation_1_5_1 done')
+
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: implementation,
@@ -51,13 +49,6 @@ async function main (): Promise<void> {
     constructorArguments: [
       EntryPoint
     ]
-  })
-
-  // verify BloctoAccountFactory (if proxy)
-  const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
-  await hre.run('verify:verify', {
-    address: accountFactoryImplAddress,
-    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
   })
 }
 

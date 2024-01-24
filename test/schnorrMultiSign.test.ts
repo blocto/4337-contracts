@@ -124,12 +124,11 @@ describe('Schnorr MultiSign Test', function () {
       await authorizedWallet.getAddress(),
       await cosignerWallet.getAddress(),
       await recoverWallet.getAddress(),
-      BigNumber.from(123),
+      BigNumber.from(129),
       pxIndexWithParity,
       px,
       factory
     )
-
     // multisig
     const msg = 'just a test message'
 

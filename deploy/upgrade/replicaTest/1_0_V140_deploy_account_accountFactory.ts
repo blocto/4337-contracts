@@ -16,11 +16,12 @@ const CreateAccountBackend = '0x8A6a17F1A3DA0F407A67BF8E076Ed7F678D85f29'
 // entrypoint from 4337 official
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 // from 0_deploy_create3Factory.ts
-const Create3FactoryAddress = '0x0659706013c5084c085E9B601D06De16BAFaAAfD'
+// const Create3FactoryAddress = '0x8d0451a5ab35C48Ff786146e689F8585dd1fC20d'
+const Create3FactoryAddress = '0xDf70771C9C3e0A8C9b2b4CC754700aB010Fd9c25'
 
 // BloctowalletCloneableSalt
-const BloctoAccountCloneableWalletSalt = 'BloctoAccount_v140-3'
-const BloctoAccountFactorySalt = 'BloctoAccountFactoryProxy_v140-3'
+const BloctoAccountCloneableWalletSalt = 'BloctoAccount_v140'
+const BloctoAccountFactorySalt = 'BloctoAccountFactoryProxy_v140'
 
 async function main (): Promise<void> {
   // const lockedAmount = ethers.utils.parseEther("1");
@@ -72,7 +73,7 @@ async function main (): Promise<void> {
   // verify BloctowalletCloneableWallet
   await hre.run('verify:verify', {
     address: walletCloneable,
-    contract: 'contracts/test/V140/BloctoAccountCloneableWalletV140.sol:BloctoAccountCloneableWalletV140',
+    contract: 'contracts/v1.4.x/BloctoAccountCloneableWalletV140.sol:BloctoAccountCloneableWalletV140',
     constructorArguments: [
       EntryPoint
     ]
@@ -82,7 +83,7 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, accountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/test/V140/BloctoAccountFactoryV140.sol:BloctoAccountFactoryV140'
+    contract: 'contracts/v1.4.x/BloctoAccountFactoryV140.sol:BloctoAccountFactoryV140'
   })
 }
 

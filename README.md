@@ -28,6 +28,11 @@ test coverage
 npx hardhat coverage  
 ```
 
+on chain test
+```
+npx hardhat test test/bloctoaccount.test.ts  --network astar_zkevm_sepolia
+```
+
 ## Deploy & Verify
 
 deploy BloctoAccountCloneableWallet, BloctoAccountFactory, and addStake to BloctoAccountFactory
