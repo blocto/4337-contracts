@@ -10,7 +10,8 @@ import {
   TestERC20,
   TestERC20__factory,
   BloctoAccountFactory__factory,
-  BloctoAccountFactory
+  BloctoAccountFactory,
+  BloctoAccountFactoryBase
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 
@@ -19,6 +20,7 @@ import {
   createTmpAccount,
   createAccount,
   createAccountV151,
+  createAccountV153,
   deployEntryPoint,
   ONE_ETH,
   TWO_ETH,
@@ -98,10 +100,22 @@ describe('BloctoAccount Test', function () {
         break
       case '1.5.1':
       case '1.5.2':
+        console.log('use 1.5.2')
+        retAccount = await createAccountV151(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(salt),
+          pxIndexWithParity,
+          px,
+          ifactory
+        )
+        break
       case '1.5.3':
       default:
         console.log('use 1.5.3')
-        retAccount = await createAccountV151(
+        retAccount = await createAccountV153(
           ethersSigner,
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
@@ -175,15 +189,15 @@ describe('BloctoAccount Test', function () {
       await bloctoAccountCloneableWalletDeployTx.wait()
     }
     // account factory
-    const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
+    const BloctoAccountFactoryBase = await ethers.getContractFactory('BloctoAccountFactoryBase')
     const BloctoAccountFactoryProxySalt = hexZeroPad(Buffer.from('BloctoAccountFactoryProxy_v140', 'utf-8'), 32)
     const accountFactoryAddress: string = await create3Factory.getDeployed(await create3Factory.signer.getAddress(), BloctoAccountFactoryProxySalt)
     if ((await ethers.provider.getCode(accountFactoryAddress)) !== '0x') {
       console.log(`Using Existed BloctoAccountFactory (${accountFactoryAddress})!`)
       factory = await BloctoAccountFactory__factory.connect(accountFactoryAddress, ethersSigner)
     } else {
-      console.log(`Deploying to BloctoAccountFactory (${accountFactoryAddress})...`)
-      factory = await create3DeployTransparentProxy(BloctoAccountFactory,
+      console.log(`Deploying to BloctoAccountFactoryBase (${accountFactoryAddress})...`)
+      factory = await create3DeployTransparentProxy(BloctoAccountFactoryBase,
         [implementation, entryPoint.address, await ethersSigner.getAddress()],
         { initializer: 'initialize' }, create3Factory, ethersSigner, BloctoAccountFactoryProxySalt)
     }
@@ -199,6 +213,9 @@ describe('BloctoAccount Test', function () {
       const factorySetImplementation_1_5_1Tx = await factory.setImplementation_1_5_1(implementation)
       await factorySetImplementation_1_5_1Tx.wait()
     }
+
+    const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+    factory = await upgrades.upgradeProxy(factory.address, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
 
     // testERC20 deploy
     const testERC20Salt = hexZeroPad(Buffer.from('TestERC20', 'utf-8'), 32)
@@ -1173,17 +1190,21 @@ describe('BloctoAccount Test', function () {
       const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
 
       console.log('simulating createAccountWithInvoke2...')
-      const errorArgs = await factory.callStatic.simulateCreateAccountWithInvoke2(
+      const errorArgs = await factory.callStatic.simulateCreateAccountWithInvoke2_1_5_3(
         await authorizedEOA.getAddress(),
         await cosignerEOA.getAddress(),
         await recoverEOA.getAddress(),
         newSalt,
         pxIndexWithParity,
         px,
-        { nonce: newNonce, data: erc20TransferData, signature: sign }
+        { nonce: newNonce, data: erc20TransferData, signature: sign },
+        { gasLimit: 1e6 }
       ).catch(e => e.errorArgs)
       // targetSuccess should be true
       expect(errorArgs.targetSuccess).to.be.true
+      expect(errorArgs.gasLeft).to.gt(0)
+      // use around 2e5 gas
+      expect(errorArgs.gasLeft).to.lt(8e5)
       // the account should NOT be created
       expect(await ethers.provider.getCode(predictAddr151)).to.equal('0x')
     })
@@ -1209,16 +1230,20 @@ describe('BloctoAccount Test', function () {
       const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
 
       console.log('simulating createAccount2WithInvoke2...')
-      const errorArgs = await factory.callStatic.simulateCreateAccount2WithInvoke2(
+      const errorArgs = await factory.callStatic.simulateCreateAccount2WithInvoke2_1_5_3(
         [authorizedEOA.address, authorizedEOA2.address],
         cosignerEOA.address, recoverEOA.address,
         newSalt,
         [pxIndexWithParity, pxIndexWithParity2],
         [px, px2],
-        { nonce: newNonce, data: erc20TransferData, signature: sign }
+        { nonce: newNonce, data: erc20TransferData, signature: sign },
+        { gasLimit: 1e6 }
       ).catch(e => e.errorArgs)
       // targetSuccess should be true
       expect(errorArgs.targetSuccess).to.be.true
+      expect(errorArgs.gasLeft).to.gt(0)
+      // use around 2e5 gas
+      expect(errorArgs.gasLeft).to.lt(8e5)
       // the account should NOT be created
       expect(await ethers.provider.getCode(predictAddr151)).to.equal('0x')
     })

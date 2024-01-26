@@ -109,7 +109,7 @@ contract CoreWallet is IERC1271 {
     ///  for more information about clone contracts.
     bool public initialized;
 
-    error ExecutionResult(bool targetSuccess);
+    error ExecutionResult(bool targetSuccess, uint256 gasLeft);
 
     /// @notice Used to decorate methods that can only be called directly by the recovery address.
     modifier onlyRecoveryAddress() {
@@ -632,7 +632,7 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, _data);
 
         // always revert
-        revert ExecutionResult(true);
+        revert ExecutionResult(true, gasleft());
     }
 
     /// @dev Internal invoke

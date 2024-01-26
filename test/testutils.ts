@@ -320,7 +320,33 @@ export async function createAccountV151 (
   const tx = await accountFactory.createAccount_1_5_1(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
   const receipt = await tx.wait()
   if (ShowCreateAccountGas) {
-    console.log('createAccount 151 gasUsed: ', receipt.gasUsed)
+    console.log('createAccount_1_5_1 gasUsed: ', receipt.gasUsed)
+  }
+
+  const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
+  return account
+}
+
+// deploy account with 1.5.3
+export async function createAccountV153 (
+  ethersSigner: Signer,
+  authorizedAddresses: string,
+  cosignerAddresses: string,
+  recoverAddresses: string,
+  salt: BigNumber,
+  mergedKeyIndexWithParity: number,
+  mergedKey: string,
+  accountFactory: BloctoAccountFactory
+): Promise<BloctoAccount> {
+  const newSalt = keccak256(concat([
+    ethers.utils.hexZeroPad(salt.toHexString(), 32),
+    cosignerAddresses, recoverAddresses
+  ]))
+  const accountAddress = await accountFactory.getAddress_1_5_1(newSalt)
+  const tx = await accountFactory.createAccount_1_5_3(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
+  const receipt = await tx.wait()
+  if (ShowCreateAccountGas) {
+    console.log('createAccount_1_5_3 gasUsed: ', receipt.gasUsed)
   }
 
   const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
