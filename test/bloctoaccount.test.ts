@@ -214,8 +214,15 @@ describe('BloctoAccount Test', function () {
       await factorySetImplementation_1_5_1Tx.wait()
     }
 
-    const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-    factory = await upgrades.upgradeProxy(factory.address, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
+    const nowFactoryVersoin = await factory.VERSION()
+    console.log(`Factory version: ${nowFactoryVersoin}`)
+    if (nowFactoryVersoin !== NextVersion) {
+      console.log(`\t upgrade factory(${nowFactoryVersoin}) to new version(${NextVersion})`)
+      const BaseContract = await ethers.getContractFactory('BloctoAccountFactoryBase')
+      await upgrades.forceImport(accountFactoryAddress, BaseContract)
+      const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+      factory = await upgrades.upgradeProxy(factory.address, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
+    }
 
     // testERC20 deploy
     const testERC20Salt = hexZeroPad(Buffer.from('TestERC20', 'utf-8'), 32)
@@ -800,7 +807,7 @@ describe('BloctoAccount Test', function () {
 
       if ((await ethers.provider.getCode(predictAddr151)) === '0x') {
         console.log(`Deploying to BloctoAccount (${predictAddr151})...`)
-        const tx = await factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+        const tx = await factory.createAccount2_1_5_3([authorizedWallet.address, authorizedWallet2.address],
           cosignerWallet.address, recoverWallet2.address,
           salt,
           [pxIndexWithParity, pxIndexWithParity2],
@@ -809,7 +816,7 @@ describe('BloctoAccount Test', function () {
         await tx.wait()
       } else {
         await expect(
-          factory.createAccount2_1_5_1([authorizedWallet.address, authorizedWallet2.address],
+          factory.createAccount2_1_5_3([authorizedWallet.address, authorizedWallet2.address],
             cosignerWallet.address, recoverWallet2.address,
             salt,
             [pxIndexWithParity, pxIndexWithParity2],
@@ -817,6 +824,10 @@ describe('BloctoAccount Test', function () {
         ).to.revertedWith('execution reverted')
       }
 
+      console.log('cosignerWallet2.address: ', cosignerWallet2.address)
+      console.log('recoverWallet2.address: ', recoverWallet2.address)
+
+      console.log('consistent predictAddr151:', predictAddr151)
       const account2_1_5_1 = await BloctoAccount__factory.connect(predictAddr151, ethersSigner)
       expect(predictAddr151).to.equal(account2_1_5_1.address)
       expect(await account2_1_5_1.VERSION()).to.equal(NextVersion)

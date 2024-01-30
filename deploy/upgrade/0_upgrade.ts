@@ -41,13 +41,21 @@ async function main (): Promise<void> {
   }
 
   // deploy BloctoAccountFactory to next version
-  const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-  const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
+
+  const BaseContract = await ethers.getContractFactory('BloctoAccountFactoryBase')
+  const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, BaseContract)
   console.log('Proxy imported from:', deployment.address)
-  const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'always' })
-  // const factory = BloctoAccountFactory__factory.connect(BloctoAccountFactoryAddr, owner)
-  await factory.setImplementation_1_5_1(implementation)
-  console.log('setImplementation_1_5_1 done')
+  const factory = BloctoAccountFactory__factory.connect(deployment.address, owner)
+
+  const nowFactoryVersoin = await factory.VERSION()
+  console.log(`Factory version: ${nowFactoryVersoin}`)
+  if (nowFactoryVersoin !== NextVersion) {
+    console.log('\t upgrading factory...')
+    const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+    await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
+    console.log('\t new factory versoin', await factory.VERSION())
+  }
+
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: implementation,
@@ -61,7 +69,10 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory',
+    constructorArguments: [
+      implementation
+    ]
   })
 }
 
