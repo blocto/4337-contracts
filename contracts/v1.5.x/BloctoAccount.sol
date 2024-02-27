@@ -112,13 +112,6 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     }
 
     /**
-     * check current account deposit in the entryPoint StakeManager
-     */
-    function getDeposit() public view returns (uint256) {
-        return entryPoint().balanceOf(address(this));
-    }
-
-    /**
      * deposit more funds for this account in the entryPoint StakeManager
      */
     function addDeposit() public payable {

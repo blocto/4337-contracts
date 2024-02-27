@@ -12,12 +12,12 @@ import { hexZeroPad } from '@ethersproject/bytes'
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 // NOTE: don't forget to change this according to the backend deploy account
 // prod mainnet
-const CreateAccountBackend = '0x8A6a17F1A3DA0F407A67BF8E076Ed7F678D85f29'
-const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
+// const CreateAccountBackend = '0x8A6a17F1A3DA0F407A67BF8E076Ed7F678D85f29'
+// const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 
 // dev testnet
-// const CreateAccountBackend = '0x67465ec61c3c07b119e09fbb4a0b59eb1ba14e62'
-// const Create3FactoryAddress = '0xd6CA621705575c3c23622b0802964a556870953b'
+const CreateAccountBackend = '0x67465ec61c3c07b119e09fbb4a0b59eb1ba14e62'
+const Create3FactoryAddress = '0xd6CA621705575c3c23622b0802964a556870953b'
 
 // BloctowalletCloneableSalt
 const BloctoAccountCloneableWalletSalt = 'BloctoAccount_v140'
@@ -54,7 +54,7 @@ async function main (): Promise<void> {
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     const accountFactory = await create3DeployTransparentProxy(BloctoAccountFactory,
       [walletCloneable, EntryPoint, owner.address],
-      { initializer: 'initialize' }, create3Factory, owner, accountFactorySalt)
+      { initializer: 'initialize', constructorArgs: [walletCloneable], unsafeAllow: ['constructor', 'state-variable-immutable'] }, create3Factory, owner, accountFactorySalt)
 
     await accountFactory.deployed()
     console.log(`BloctoAccountFactory JUST deployed to: ${accountFactory.address}`)
@@ -94,7 +94,10 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, accountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory',
+    constructorArguments: [
+      walletCloneable
+    ]
   })
 }
 
