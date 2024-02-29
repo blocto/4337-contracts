@@ -202,7 +202,8 @@ const config: HardhatUserConfig = {
     blast_sepolia: {
       url: 'https://blast-sepolia.blockpi.network/v1/rpc/public',
       accounts: getDeployAccount(),
-      chainId: 168587773
+      chainId: 168587773,
+      gasPrice: 3000000000
     }
   },
   mocha: {

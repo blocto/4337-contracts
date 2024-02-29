@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Wallet, BigNumber, ContractTransaction } from 'ethers'
+import { Wallet, BigNumber, ContractTransaction, Contract } from 'ethers'
 import { expect } from 'chai'
 import {
   BloctoAccount,

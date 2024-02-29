@@ -11,6 +11,8 @@ import "@account-abstraction/contracts/core/BaseAccount.sol";
 import "../utils/TokenCallbackHandler.sol";
 import "./CoreWallet.sol";
 
+import {BLAST, GAS_COLLECTOR} from "./BlastConstant.sol";
+
 /**
  * Blocto account.
  *  compatibility for EIP-4337 and smart contract wallet with cosigner functionality (CoreWallet)
@@ -136,8 +138,14 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
 
     /// @notice initialize BloctoAccountProxy for adding the implementation address
     /// @param implementation implementation address
-    function initImplementation(address implementation) public onlyOnceInitImplementation {
+    function initImplementation(address implementation) public virtual onlyOnceInitImplementation {
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
+
+        // contract balance will grow automatically
+        BLAST.configureAutomaticYield();
+        // let GAS_COLLECTOR collect gas
+        BLAST.configureClaimableGas();
+        BLAST.configureGovernor(GAS_COLLECTOR);
     }
 }

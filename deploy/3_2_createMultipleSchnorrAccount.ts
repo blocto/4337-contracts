@@ -38,7 +38,7 @@ async function main (): Promise<void> {
   console.log('ethersSigner address: ', await ethersSigner.getAddress())
   console.log('factory.address', factory.address)
 
-  const tx = await factory.createAccount2([authorizedWallet.address, authorizedWallet2.address, cosignerWallet.address],
+  const tx = await factory.createAccount2_1_5_3([authorizedWallet.address, authorizedWallet2.address, cosignerWallet.address],
     cosignerWallet.address, RecoverAddress,
     SALT, // random salt
     [pxIndexWithParity, pxIndexWithParity2, pxIndexWithParity3],

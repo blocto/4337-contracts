@@ -202,7 +202,7 @@ contract CoreWallet is IERC1271 {
         address _recoveryAddress,
         uint8 _mergedKeyIndexWithParity,
         bytes32 _mergedKey
-    ) public virtual onlyOnce {
+    ) public onlyOnce {
         require(_authorizedAddress != address(0), "authorized addresses must not be zero");
         require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
         require(address(uint160(_cosigner)) != _recoveryAddress, "do not use the recovery address as a cosigner");

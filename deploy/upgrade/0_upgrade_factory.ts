@@ -3,7 +3,7 @@ import hre, { ethers } from 'hardhat'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
 const BloctoAccountFactoryAddr = '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1'
-const BloctoAccountCloneablelAddr = '0x77E262adD1b7DBF4ad7C39045CCC0FB22f060867'
+const BloctoAccountCloneablelAddr = '0x89EbeBE2bA6638729FBD2F33d200A48C81684c3c'
 
 async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
