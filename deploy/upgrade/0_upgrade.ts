@@ -9,7 +9,7 @@ import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-const NextVersion = '1.5.3'
+const NextVersion = '1.5.3-blast'
 // entrypoint from 4337 official (0.6.0)
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 // mainnet
@@ -52,12 +52,12 @@ async function main (): Promise<void> {
 
   const nowFactoryVersoin = await factory.VERSION()
   console.log(`Factory version: ${nowFactoryVersoin}`)
-  // if (nowFactoryVersoin !== NextVersion) {
-  console.log('\t upgrading factory...')
-  const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-  await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
-  console.log('\t new factory versoin', await factory.VERSION())
-  // }
+  if (nowFactoryVersoin !== NextVersion) {
+    console.log('\t upgrading factory...')
+    const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+    await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
+    console.log('\t new factory versoin', await factory.VERSION())
+  }
 
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {

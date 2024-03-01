@@ -23,7 +23,10 @@ async function readGasCanBeClaimed (chkAddr: string): Promise<[BigNumber, number
 }
 
 describe('Blast Gas Collector Test', function () {
-  const targetAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
+  // can claim factory gas
+  // const targetAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
+  // can claim wallet gas
+  const targetAddr = '0xB6cbD452647435971F5ddbE72D85808d06CBcD28'
   const ethersSigner = ethers.provider.getSigner(0)
   const gasCollecotr = BlastGasCollector__factory.connect(BlastGasCollectorAddr, ethersSigner)
 
