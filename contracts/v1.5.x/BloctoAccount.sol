@@ -136,7 +136,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
 
     /// @notice initialize BloctoAccountProxy for adding the implementation address
     /// @param implementation implementation address
-    function initImplementation(address implementation) public virtual onlyOnceInitImplementation {
+    function initImplementation(address implementation) public onlyOnceInitImplementation {
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
     }
