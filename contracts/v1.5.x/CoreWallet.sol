@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "../utils/BytesExtractSignature.sol";
-import {BLAST, GAS_COLLECTOR} from "./BlastConstant.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -216,8 +215,6 @@ contract CoreWallet is IERC1271 {
         authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
         mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParity] = _mergedKey;
         emit Authorized(_authorizedAddress, _cosigner);
-        // configure blast
-        configureBlast();
     }
 
     /// @notice The shared initialization code used to setup the contract state regardless of whether or
@@ -248,20 +245,8 @@ contract CoreWallet is IERC1271 {
             require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
             authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
             mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
-
             emit Authorized(_authorizedAddress, _cosigner);
         }
-
-        configureBlast();
-    }
-
-    /// @notice configure blast for yield and gas
-    function configureBlast() internal {
-        // contract balance will grow automatically
-        BLAST.configureAutomaticYield();
-        // let GAS_COLLECTOR collect gas
-        BLAST.configureClaimableGas();
-        BLAST.configureGovernor(GAS_COLLECTOR);
     }
 
     /// @notice The fallback function, invoked whenever we receive a transaction that doesn't call any of our

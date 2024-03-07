@@ -9,13 +9,19 @@ import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-const NextVersion = '1.5.3-blast'
+const NextVersion = '1.5.3-blast-0.1'
 // entrypoint from 4337 official (0.6.0)
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
 // mainnet
 let Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 let BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
 // testnet
+
+async function getBlastPointAddress (): Promise<string> {
+  const { chainId } = await ethers.provider.getNetwork()
+  // 81457: mainnet using 0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800 from https://docs.blast.io/airdrop/api#configuring-a-points-operator
+  return chainId === 81457 ? '0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800' : '0x2fc95838c71e76ec69ff817983BFf17c710F34E0'
+}
 
 async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
@@ -31,11 +37,14 @@ async function main (): Promise<void> {
   const accountCloneableSalt = hexZeroPad(Buffer.from(nextVersionBloctoAccountCloneable, 'utf-8'), 32)
   const implementation = await create3Factory.getDeployed(await owner.getAddress(), accountCloneableSalt)
 
+  const blastPointAddress = await getBlastPointAddress()
+  console.log('Using blastPointAddress: ', blastPointAddress)
+
   if ((await ethers.provider.getCode(implementation)) === '0x') {
     console.log(`BloctowalletCloneableWallet ${NextVersion} deploying to: ${implementation}`)
     const tx = await create3Factory.deploy(
       accountCloneableSalt,
-      getDeployCode(new BloctoAccountCloneableWallet__factory(), [EntryPoint])
+      getDeployCode(new BloctoAccountCloneableWallet__factory(), [EntryPoint, blastPointAddress])
     )
     await tx.wait()
     console.log(`BloctowalletCloneableWallet ${NextVersion} JUST deployed to: ${implementation}`)
@@ -64,7 +73,7 @@ async function main (): Promise<void> {
     address: implementation,
     contract: 'contracts/v1.5.x/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
-      EntryPoint
+      EntryPoint, blastPointAddress
     ]
   })
 

@@ -14,3 +14,7 @@ interface IBlast {
     function configureGovernorOnBehalf(address _newGovernor, address contractAddress) external;
     function claimAllGas(address contractAddress, address recipient) external returns (uint256);
 }
+
+interface IBlastPoints {
+    function configurePointsOperator(address operator) external;
+}
