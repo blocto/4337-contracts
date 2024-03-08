@@ -8,7 +8,7 @@ import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "../BloctoAccountProxy.sol";
 import "./BloctoAccount.sol";
 
-import {BLAST, GAS_COLLECTOR} from "./BlastConstant.sol";
+import {BLAST, IBlastPoints, GAS_COLLECTOR} from "./BlastConstant.sol";
 
 // BloctoAccountFactory for creating BloctoAccountProxy
 contract BloctoAccountFactoryBase is Initializable, AccessControlUpgradeable {
@@ -57,6 +57,13 @@ contract BloctoAccountFactoryBase is Initializable, AccessControlUpgradeable {
         // let GAS_COLLECTOR collect gas
         BLAST.configureClaimableGas();
         BLAST.configureGovernor(GAS_COLLECTOR);
+    }
+
+    /// @notice configure blast for yield, gas, and points
+    /// @param pointsOperator blast points contract operator address, should be EOA from https://docs.blast.io/airdrop/api#configuring-a-points-operator
+    function configureBlastPoints(address blastPointsAddr, address pointsOperator) external onlyAdmin {
+        // operator should be EOA
+        IBlastPoints(blastPointsAddr).configurePointsOperator(pointsOperator);
     }
 
     /// @notice only the admin can update admin functioins
