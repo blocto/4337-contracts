@@ -9,11 +9,15 @@ import { hexZeroPad } from '@ethersproject/bytes'
 import { getDeployCode } from '../../src/create3Factory'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-const NextVersion = '1.5.2'
+const NextVersion = '1.5.3'
 // entrypoint from 4337 official (0.6.0)
 const EntryPoint = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
-const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
-const BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
+// mainnet
+// const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
+// const BloctoAccountFactoryAddr = '0xF7cCFaee69cD8A0B3a62C2A0f35F95cC7e588183'
+// testnet
+const Create3FactoryAddress = '0xd6CA621705575c3c23622b0802964a556870953b'
+const BloctoAccountFactoryAddr = '0x38DDa3Aed6e71457d573F993ee06380b1cDaF3D1'
 
 async function main (): Promise<void> {
   const [owner] = await ethers.getSigners()
@@ -37,13 +41,21 @@ async function main (): Promise<void> {
   }
 
   // deploy BloctoAccountFactory to next version
-  // const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
-  // const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, UpgradeContract)
-  // console.log('Proxy imported from:', deployment.address)
-  // // const factory = await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { redeployImplementation: 'never' })
-  const factory = BloctoAccountFactory__factory.connect(BloctoAccountFactoryAddr, owner)
-  await factory.setImplementation_1_5_1(implementation)
-  console.log('setImplementation_1_5_1 done')
+
+  const BaseContract = await ethers.getContractFactory('BloctoAccountFactoryBase')
+  const deployment = await upgrades.forceImport(BloctoAccountFactoryAddr, BaseContract)
+  console.log('Proxy imported from:', deployment.address)
+  const factory = BloctoAccountFactory__factory.connect(deployment.address, owner)
+
+  const nowFactoryVersoin = await factory.VERSION()
+  console.log(`Factory version: ${nowFactoryVersoin}`)
+  if (nowFactoryVersoin !== NextVersion) {
+    console.log('\t upgrading factory...')
+    const UpgradeContract = await ethers.getContractFactory('BloctoAccountFactory')
+    await upgrades.upgradeProxy(BloctoAccountFactoryAddr, UpgradeContract, { constructorArgs: [implementation], unsafeAllow: ['constructor', 'state-variable-immutable'] })
+    console.log('\t new factory versoin', await factory.VERSION())
+  }
+
   // verify BloctoAccountCloneableWallet
   await hre.run('verify:verify', {
     address: implementation,
@@ -57,7 +69,10 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, BloctoAccountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory',
+    constructorArguments: [
+      implementation
+    ]
   })
 }
 

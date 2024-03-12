@@ -19,7 +19,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     /**
      *  This is the version of this contract.
      */
-    string public constant VERSION = "1.5.2";
+    string public constant VERSION = "1.5.3";
 
     /// @notice entrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;

@@ -45,6 +45,9 @@ contract CoreWallet is IERC1271 {
     /// @notice s of signature must be less than S_MAX refer from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/f29307cfe08c7d76d96a38bf94bab5fec223c943/contracts/utils/cryptography/ECDSA.sol#L156
     bytes32 internal constant S_MAX = bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0);
 
+    /// @notice This is for point and revert flag b01 when any meta tx fail because of atomicity
+    uint256 internal constant FEE_SUCCESS_META_TXS_FAIL = type(uint256).max - 1;
+
     /// @notice The pre-shifted authVersion (to get the current authVersion as an integer,
     ///  shift this value right by 160 bits). Starts as `1 << 160` (`AUTH_VERSION_INCREMENTOR`)
     ///  See the comment on the `authorizations` variable for how this is used.
@@ -106,7 +109,7 @@ contract CoreWallet is IERC1271 {
     ///  for more information about clone contracts.
     bool public initialized;
 
-    error ExecutionResult(bool targetSuccess);
+    error ExecutionResult(bool targetSuccess, uint256 gasLeft);
 
     /// @notice Used to decorate methods that can only be called directly by the recovery address.
     modifier onlyRecoveryAddress() {
@@ -265,23 +268,6 @@ contract CoreWallet is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-
-        address delegate = delegates[msg.sig];
-        require(delegate > COMPOSITE_PLACEHOLDER, "invalid transaction");
-
-        // We have found a delegate contract that is responsible for the method signature of
-        // this call. Now, pass along the calldata of this CALL to the delegate contract.
-        assembly {
-            calldatacopy(0, 0, calldatasize())
-            let result := staticcall(gas(), delegate, 0, calldatasize(), 0, 0)
-            returndatacopy(0, 0, returndatasize())
-
-            // If the delegate reverts, we revert. If the delegate does not revert, we return the data
-            // returned by the delegate to the original caller.
-            switch result
-            case 0 { revert(0, returndatasize()) }
-            default { return(0, returndatasize()) }
-        }
     }
 
     // solhint-disable-next-line no-empty-blocks
@@ -289,23 +275,6 @@ contract CoreWallet is IERC1271 {
         if (msg.value > 0) {
             emit Received(msg.sender, msg.value);
         }
-    }
-
-    /// @notice Adds or removes dynamic support for an interface. Can be used in 3 ways:
-    ///   - Add a contract "delegate" that implements a single function
-    ///   - Remove delegate for a function
-    ///   - Specify that an interface ID is "supported", without adding a delegate. This is
-    ///     used for composite interfaces when the interface ID is not a single method ID.
-    /// @dev Must be called through `invoke`
-    /// @param _interfaceId The ID of the interface we are adding support for
-    /// @param _delegate Either:
-    ///    - the address of a contract that implements the function specified by `_interfaceId`
-    ///      for adding an implementation for a single function
-    ///    - 0 for removing an existing delegate
-    ///    - COMPOSITE_PLACEHOLDER for specifying support for a composite interface
-    function setDelegate(bytes4 _interfaceId, address _delegate) external onlyInvoked {
-        delegates[_interfaceId] = _delegate;
-        emit DelegateUpdated(_interfaceId, _delegate);
     }
 
     /// @notice Configures an authorizable address. Can be used in four ways:
@@ -663,12 +632,79 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, _data);
 
         // always revert
-        revert ExecutionResult(true);
+        revert ExecutionResult(true, gasleft());
+    }
+
+    /// @dev Internal invoke
+    /// @param operationHash The hash of the operation
+    /// @param data The data to send to the `call()` operation
+    function internalInvoke(bytes32 operationHash, bytes calldata data) internal {
+        // At an absolute minimum, the data field must be at least 85 bytes
+        // <revert(1), to_address(20), value(32), data_length(32)>
+        require(data.length >= 85, "data field too short");
+
+        bytes1 flag = data[0];
+
+        bytes memory executeBlock;
+        if ((flag & 0x02) == 0) {
+            // fee block, first op for fee deduction
+            assembly {
+                //  <revert(1), to_address(20), value(32), data_length(32)>
+                // 53 = 1 + 20 + 32, 85 = 53 + 32
+                let callLen := calldataload(add(data.offset, 53))
+                calldatacopy(mload(0x40), add(data.offset, 85), callLen)
+                // call(g, a, v, in, insize, out, outsize)
+                // check the result (0 == reverted)
+                if eq(
+                    0,
+                    call(
+                        gas(),
+                        shr(96, calldataload(add(data.offset, 1))),
+                        calldataload(add(data.offset, 21)),
+                        mload(0x40),
+                        callLen,
+                        0,
+                        0
+                    )
+                ) { revert(add("fee deduct failed", 32), mload("fee deduct failed")) }
+                // copy left data to executeBlock
+                let leftLen := sub(data.length, add(85, callLen))
+                mstore(executeBlock, leftLen)
+                calldatacopy(add(executeBlock, 0x20), add(add(data.offset, 85), callLen), leftLen)
+            }
+            // check revert flag
+            if ((flag & 0x01) == 0) {
+                internalInvokeCall(operationHash, executeBlock, false);
+            } else {
+                // atmoic operation, revert if any operation failed
+                try this.invokeFromSelf(operationHash, executeBlock) {}
+                catch {
+                    emit InvocationSuccess(operationHash, FEE_SUCCESS_META_TXS_FAIL, 1);
+                }
+            }
+        } else {
+            // fee deduct using Blocto ponits, copy data exclude first 1 byte (revert flag)
+            assembly {
+                let leftLen := sub(data.length, 1)
+                mstore(executeBlock, leftLen)
+                calldatacopy(add(executeBlock, 0x20), add(data.offset, 1), leftLen)
+            }
+
+            internalInvokeCall(operationHash, executeBlock, (flag == 0x03) ? true : false);
+        }
+    }
+
+    /// @dev this is external but only invoked by this contract
+    /// @param operationHash The hash of the operation
+    /// @param data The data to send to the `call()` operation
+    function invokeFromSelf(bytes32 operationHash, bytes memory data) external onlyInvoked {
+        internalInvokeCall(operationHash, data, true);
     }
 
     /// @dev Internal invoke call,
     /// @param operationHash The hash of the operation
     /// @param data The data to send to the `call()` operation
+    /// @param revertFlag revert or not if any operation failed
     ///  The data is prefixed with a global 1 byte revert flag
     ///  If revert is 1, then any revert from a `call()` operation is rethrown.
     ///  Otherwise, the error is recorded in the `result` field of the `InvocationSuccess` event.
@@ -676,7 +712,7 @@ contract CoreWallet is IERC1271 {
     ///  of 1 or more tightly packed tuples:
     ///  `<target(20),amount(32),datalength(32),data>`
     ///  If `datalength == 0`, the data field must be omitted
-    function internalInvoke(bytes32 operationHash, bytes memory data) internal {
+    function internalInvokeCall(bytes32 operationHash, bytes memory data, bool revertFlag) internal {
         // keep track of the number of operations processed
         uint256 numOps;
         // keep track of the result of each operation as a bit
@@ -689,7 +725,6 @@ contract CoreWallet is IERC1271 {
 
         // At an absolute minimum, the data field must be at least 85 bytes
         // <revert(1), to_address(20), value(32), data_length(32)>
-        require(data.length >= 85, invalidLengthMessage);
 
         // Forward the call onto its actual target. Note that the target address can be `self` here, which is
         // actually the required flow for modifying the configuration of the authorized keys and recovery address.
@@ -699,14 +734,8 @@ contract CoreWallet is IERC1271 {
             // A cursor pointing to the revert flag, starts after the length field of the data object
             let memPtr := add(data, 32)
 
-            // The revert flag is the leftmost byte from memPtr
-            let revertFlag := byte(0, mload(memPtr))
-
             // A pointer to the end of the data object
             let endPtr := add(memPtr, mload(data))
-
-            // Now, memPtr is a cursor pointing to the beginning of the current sub-operation
-            memPtr := add(memPtr, 1)
 
             // Loop through data, parsing out the various sub-operations
             for {} lt(memPtr, endPtr) {} {
