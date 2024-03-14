@@ -18,7 +18,8 @@ const {
   BASESCAN_API_KEY, // base scan API KEY
   LINEASCAN_API_KEY, // linea scan API KEY
   BASE_SEPOLIA_API_KEY, // base sepolia scan API KEY
-  SCROLLSCAN_API_KEY // scroll scan API KEY
+  SCROLLSCAN_API_KEY, // scroll scan API KEY
+  BLASTSCAN_API_KEY // blast scan API KEY
 } = process.env
 
 function getDeployAccount (): string[] {
@@ -204,6 +205,11 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 168587773,
       gasPrice: 3000000000
+    },
+    blast: {
+      url: 'https://rpc.ankr.com/blast',
+      accounts: getDeployAccount(),
+      chainId: 81457
     }
   },
   mocha: {
@@ -238,7 +244,8 @@ const config: HardhatUserConfig = {
       scrollSepolia: SCROLLSCAN_API_KEY,
       astarZkevmSepolia: SCROLLSCAN_API_KEY,
       taikoJolnirSepolia: SCROLLSCAN_API_KEY,
-      blast_sepolia: 'blast_sepolia'
+      blast_sepolia: 'blast_sepolia',
+      blast: BLASTSCAN_API_KEY
     },
     customChains: [
       {
@@ -359,6 +366,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan',
           browserURL: 'https://testnet.blastscan.io'
+        }
+      },
+      {
+        network: 'blast',
+        chainId: 81457,
+        urls: {
+          apiURL: 'https://api.blastscan.io/api',
+          browserURL: 'https://blastscan.io/'
         }
       }
     ]

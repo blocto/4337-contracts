@@ -9,7 +9,9 @@ import { hexZeroPad } from '@ethersproject/bytes'
 // prod mainnet
 // const CreateAccountBackend = '0x8A6a17F1A3DA0F407A67BF8E076Ed7F678D85f29'
 // dev testnet
-const GasCollectorBackend = '0x67465ec61c3c07b119e09fbb4a0b59eb1ba14e62'
+// const GasCollectorBackend = '0x67465ec61c3c07b119e09fbb4a0b59eb1ba14e62'
+// prod mainnet
+const GasCollectorBackend = '0x8A6a17F1A3DA0F407A67BF8E076Ed7F678D85f29'
 
 // create3Factory
 const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
