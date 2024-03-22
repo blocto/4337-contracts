@@ -27,6 +27,7 @@ contract BloctoAccountFactoryV1_5_2 is BloctoAccountFactoryBase {
         );
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation);
+        ret.configureBlast(msg.sender);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
         );
@@ -55,6 +56,7 @@ contract BloctoAccountFactoryV1_5_2 is BloctoAccountFactoryBase {
         );
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation);
+        ret.configureBlast(msg.sender);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
         );
@@ -98,6 +100,7 @@ contract BloctoAccountFactoryV1_5_2 is BloctoAccountFactoryBase {
             Create2.deploy(0, _salt, abi.encodePacked(BLOCTO_ACCOUNT_PROXY, abi.encode(address(initImplementation))));
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation151Plus);
+        ret.configureBlast(msg.sender);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
         );
@@ -124,6 +127,7 @@ contract BloctoAccountFactoryV1_5_2 is BloctoAccountFactoryBase {
             Create2.deploy(0, _salt, abi.encodePacked(BLOCTO_ACCOUNT_PROXY, abi.encode(address(initImplementation))));
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation151Plus);
+        ret.configureBlast(msg.sender);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
         );

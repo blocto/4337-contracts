@@ -23,6 +23,12 @@ const Create3FactoryAddress = '0x2f06F83f960ea999536f94df279815F79EeB4054'
 const BloctoAccountCloneableWalletSalt = 'BloctoAccount_v140'
 const BloctoAccountFactorySalt = 'BloctoAccountFactoryProxy_v140'
 
+async function getBlastPointAddress (): Promise<string> {
+  const { chainId } = await ethers.provider.getNetwork()
+  // 81457: mainnet using 0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800 from https://docs.blast.io/airdrop/api#configuring-a-points-operator
+  return chainId === 81457 ? '0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800' : '0x2fc95838c71e76ec69ff817983BFf17c710F34E0'
+}
+
 async function main (): Promise<void> {
   // const lockedAmount = ethers.utils.parseEther("1");
   const [owner] = await ethers.getSigners()
@@ -34,11 +40,14 @@ async function main (): Promise<void> {
   console.log(`Deploying BloctoAccountCloneableWallet with -> \n\t salt str:  ${BloctoAccountCloneableWalletSalt}`)
   const walletCloneable = await create3Factory.getDeployed(owner.address, accountSalt)
 
+  const blastPointAddress = await getBlastPointAddress()
+  console.log('Using blastPointAddress: ', blastPointAddress)
+
   if ((await ethers.provider.getCode(walletCloneable)) === '0x') {
     console.log(`BloctowalletCloneableWallet deploying to: ${walletCloneable}`)
     const tx = await create3Factory.deploy(
       accountSalt,
-      getDeployCode(new BloctoAccountCloneableWallet__factory(), [EntryPoint]))
+      getDeployCode(new BloctoAccountCloneableWallet__factory(), [EntryPoint, blastPointAddress]))
     await tx.wait()
 
     console.log(`BloctowalletCloneableWallet JUST deployed to: ${walletCloneable}`)
@@ -54,7 +63,7 @@ async function main (): Promise<void> {
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     const accountFactory = await create3DeployTransparentProxy(BloctoAccountFactory,
       [walletCloneable, EntryPoint, owner.address],
-      { initializer: 'initialize' }, create3Factory, owner, accountFactorySalt)
+      { initializer: 'initialize', constructorArgs: [walletCloneable], unsafeAllow: ['constructor', 'state-variable-immutable'] }, create3Factory, owner, accountFactorySalt)
 
     await accountFactory.deployed()
     console.log(`BloctoAccountFactory JUST deployed to: ${accountFactory.address}`)
@@ -63,6 +72,9 @@ async function main (): Promise<void> {
     await accountFactory.grantRole(await accountFactory.CREATE_ACCOUNT_ROLE(), CreateAccountBackend)
     console.log('setImplementation_1_5_1 to address: ', walletCloneable)
     await accountFactory.setImplementation_1_5_1(walletCloneable)
+    console.log('set blast point to address: ', CreateAccountBackend)
+    const blastPointAddress = await getBlastPointAddress()
+    await accountFactory.configureBlastPoints(blastPointAddress, CreateAccountBackend)
   } else {
     console.log(`BloctoAccountFactory WAS deployed to: ${accountFactoryAddr}`)
   }
@@ -86,7 +98,7 @@ async function main (): Promise<void> {
     address: walletCloneable,
     contract: 'contracts/v1.5.x/BloctoAccountCloneableWallet.sol:BloctoAccountCloneableWallet',
     constructorArguments: [
-      EntryPoint
+      EntryPoint, blastPointAddress
     ]
   })
 
@@ -94,7 +106,10 @@ async function main (): Promise<void> {
   const accountFactoryImplAddress = await getImplementationAddress(ethers.provider, accountFactoryAddr)
   await hre.run('verify:verify', {
     address: accountFactoryImplAddress,
-    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory'
+    contract: 'contracts/v1.5.x/BloctoAccountFactory.sol:BloctoAccountFactory',
+    constructorArguments: [
+      walletCloneable
+    ]
   })
 }
 

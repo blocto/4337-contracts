@@ -32,6 +32,7 @@ contract BloctoAccountFactoryV1_5_3 is BloctoAccountFactoryBase {
             Create2.deploy(0, _salt, abi.encodePacked(BLOCTO_ACCOUNT_PROXY, abi.encode(address(initImplementation))));
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation_1_5_3);
+        ret.configureBlast(msg.sender);
         ret.init(
             _authorizedAddress, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParity, _mergedKey
         );
@@ -58,6 +59,7 @@ contract BloctoAccountFactoryV1_5_3 is BloctoAccountFactoryBase {
             Create2.deploy(0, _salt, abi.encodePacked(BLOCTO_ACCOUNT_PROXY, abi.encode(address(initImplementation))));
         ret = BloctoAccount(payable(newProxy));
         ret.initImplementation(bloctoAccountImplementation_1_5_3);
+        ret.configureBlast(msg.sender);
         ret.init2(
             _authorizedAddresses, uint256(uint160(_cosigner)), _recoveryAddress, _mergedKeyIndexWithParitys, _mergedKeys
         );

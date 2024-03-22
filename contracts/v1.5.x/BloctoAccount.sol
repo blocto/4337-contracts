@@ -10,6 +10,7 @@ import "@account-abstraction/contracts/core/BaseAccount.sol";
 
 import "../utils/TokenCallbackHandler.sol";
 import "./CoreWallet.sol";
+import {BLAST, IBlastPoints, GAS_COLLECTOR} from "./BlastConstant.sol";
 
 /**
  * Blocto account.
@@ -24,6 +25,9 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     /// @notice entrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
 
+    /// @notice blast points contract address, testnet address DIFF from mainnet
+    IBlastPoints public immutable _blastPoints;
+
     /// @notice initialized _IMPLEMENTATION_SLOT
     bool public initializedImplementation = false;
 
@@ -31,8 +35,9 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
      * constructor for BloctoAccount
      * @param anEntryPoint entrypoint address
      */
-    constructor(IEntryPoint anEntryPoint) {
+    constructor(IEntryPoint anEntryPoint, address blastPointsAddr) {
         _entryPoint = anEntryPoint;
+        _blastPoints = IBlastPoints(blastPointsAddr);
     }
 
     /**
@@ -112,20 +117,6 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     }
 
     /**
-     * check current account deposit in the entryPoint StakeManager
-     */
-    function getDeposit() public view returns (uint256) {
-        return entryPoint().balanceOf(address(this));
-    }
-
-    /**
-     * deposit more funds for this account in the entryPoint StakeManager
-     */
-    function addDeposit() public payable {
-        entryPoint().depositTo{value: msg.value}(address(this));
-    }
-
-    /**
      * withdraw deposit to withdrawAddress from entryPoint StakeManager
      * @param withdrawAddress target to send to
      * @param amount to withdraw
@@ -146,5 +137,18 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     function initImplementation(address implementation) public onlyOnceInitImplementation {
         require(Address.isContract(implementation), "ERC1967: new implementation is not a contract");
         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = implementation;
+    }
+
+    /// @notice configure blast for yield, gas, and points
+    /// @param pointsOperator blast points contract operator address, should be EOA from https://docs.blast.io/airdrop/api#configuring-a-points-operator
+    function configureBlast(address pointsOperator) external {
+        require(!initialized, "blast: must not be initialized");
+        // contract balance will grow automatically
+        BLAST.configureAutomaticYield();
+        // let GAS_COLLECTOR collect gas
+        BLAST.configureClaimableGas();
+        BLAST.configureGovernor(GAS_COLLECTOR);
+        // operator should be EOA
+        _blastPoints.configurePointsOperator(pointsOperator);
     }
 }

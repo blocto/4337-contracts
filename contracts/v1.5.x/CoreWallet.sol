@@ -245,7 +245,6 @@ contract CoreWallet is IERC1271 {
             require(_authorizedAddress != _recoveryAddress, "do not use the recovery address as an authorized address");
             authorizations[AUTH_VERSION_INCREMENTOR + uint256(uint160(_authorizedAddress))] = _cosigner;
             mergedKeys[AUTH_VERSION_INCREMENTOR + _mergedKeyIndexWithParitys[i]] = _mergedKeys[i];
-
             emit Authorized(_authorizedAddress, _cosigner);
         }
     }
