@@ -124,6 +124,11 @@ const config: HardhatUserConfig = {
       accounts: getDeployAccount(),
       chainId: 80001
     },
+    amoy: {
+      url: 'https://rpc-amoy.polygon.technology',
+      accounts: getDeployAccount(),
+      chainId: 80002
+    },
     bsc_testnet: {
       url: 'https://data-seed-prebsc-2-s1.binance.org:8545',
       accounts: getDeployAccount(),
@@ -209,6 +214,7 @@ const config: HardhatUserConfig = {
       mainnet: ETHERSCAN_API_KEY,
       polygon: POLYGONSCAN_API_KEY,
       polygonMumbai: POLYGONSCAN_API_KEY,
+      amoy: POLYGONSCAN_API_KEY,
       bsc: BSCSCAN_API_KEY,
       bscTestnet: BSCSCAN_API_KEY,
       avalanche: SNOWTRACE_API_KEY,
@@ -344,6 +350,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://explorer.jolnir.taiko.xyz/api',
           browserURL: 'https://explorer.jolnir.taiko.xyz/'
+        }
+      },
+      {
+        network: 'amoy',
+        chainId: 80002,
+        urls: {
+          apiURL: 'https://www.oklink.com/api/explorer/v1/contract/verify/async/api/polygonAmoy',
+          browserURL: 'https://www.okx.com/explorer/polygonAmoy/'
         }
       }
     ]
