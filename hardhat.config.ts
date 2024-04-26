@@ -21,7 +21,7 @@ const {
   SCROLLSCAN_API_KEY // scroll scan API KEY
 } = process.env
 
-function getDeployAccount (): string[] {
+function getDeployAccount(): string[] {
   return (process.env.ETH_PRIVATE_KEY !== undefined) ? [process.env.ETH_PRIVATE_KEY] : []
 }
 
@@ -30,6 +30,13 @@ const optimizedComilerSettings = {
   settings: {
     optimizer: { enabled: true, runs: 1000000 },
     viaIR: false
+  }
+}
+
+const v0_5_10 = {
+  version: '0.5.10',
+  settings: {
+    optimizer: { enabled: true, runs: 200 }
   }
 }
 
@@ -47,7 +54,9 @@ const config: HardhatUserConfig = {
       'contracts/test/TestBloctoAccountV200.sol': optimizedComilerSettings,
       'contracts/test/TestBloctoAccountCloneableWalletV200.sol': optimizedComilerSettings,
       'contracts/v1.5.x/BloctoAccount.sol': optimizedComilerSettings,
-      'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings
+      'contracts/v1.5.x/BloctoAccountCloneableWallet.sol': optimizedComilerSettings,
+      'contracts/v1.1.0/CloneableWallet.sol': v0_5_10,
+      'contracts/v1.1.0/WalletFactory.sol': v0_5_10
     }
   },
   networks: {
@@ -115,7 +124,7 @@ const config: HardhatUserConfig = {
       chainId: 421613
     },
     arbitrum_sepolia: {
-      url: 'https://sepolia-rollup.arbitrum.io/rpc',
+      url: 'https://arbitrum-sepolia.blockpi.network/v1/rpc/public',
       accounts: getDeployAccount(),
       chainId: 421614
     },
