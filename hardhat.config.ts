@@ -212,6 +212,16 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.startale.com/zkatana',
       accounts: getDeployAccount(),
       chainId: 1261120
+    },
+    merlin_testnet: {
+      url: 'https://merlin-testnet-enterprise.unifra.io',
+      accounts: getDeployAccount(),
+      chainId: 686868
+    },
+    merlin: {
+      url: 'https://rpc.merlinchain.io',
+      accounts: getDeployAccount(),
+      chainId: 4200
     }
   },
   mocha: {
@@ -246,7 +256,9 @@ const config: HardhatUserConfig = {
       scroll: SCROLLSCAN_API_KEY,
       scrollSepolia: SCROLLSCAN_API_KEY,
       astarZkevmSepolia: SCROLLSCAN_API_KEY,
-      taikoJolnirSepolia: SCROLLSCAN_API_KEY
+      taikoJolnirSepolia: SCROLLSCAN_API_KEY,
+      merlin: SCROLLSCAN_API_KEY,
+      merlinTestnet: SCROLLSCAN_API_KEY
     },
     customChains: [
       {
@@ -367,6 +379,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://www.oklink.com/api/explorer/v1/contract/verify/async/api/polygonAmoy',
           browserURL: 'https://www.okx.com/explorer/polygonAmoy/'
+        }
+      },
+      {
+        network: 'merlinTestnet',
+        chainId: 686868,
+        urls: {
+          apiURL: 'https://testnet-scan.merlinchain.io/api',
+          browserURL: 'https://testnet-scan.merlinchain.io'
+        }
+      },
+      {
+        network: 'merlin',
+        chainId: 4200,
+        urls: {
+          apiURL: 'https://scan.merlinchain.io/api',
+          browserURL: 'https://scan.merlinchain.io'
         }
       }
     ]
