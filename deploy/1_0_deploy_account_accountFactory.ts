@@ -33,6 +33,8 @@ async function main(): Promise<void> {
   const accountSalt = hexZeroPad(Buffer.from(BloctoAccountCloneableWalletSalt, 'utf-8'), 32)
   console.log(`Deploying BloctoAccountCloneableWallet with -> \n\t salt str:  ${BloctoAccountCloneableWalletSalt}`)
   const walletCloneable = await create3Factory.getDeployed(owner.address, accountSalt)
+  const v154Salt = hexZeroPad(Buffer.from('AccountV154', 'utf-8'), 32)
+  const walletV154 = await create3Factory.getDeployed(owner.address, v154Salt)
 
   if ((await ethers.provider.getCode(walletCloneable)) === '0x') {
     console.log(`BloctowalletCloneableWallet deploying to: ${walletCloneable}`)
@@ -54,7 +56,7 @@ async function main(): Promise<void> {
     const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     const accountFactory = await create3DeployTransparentProxy(BloctoAccountFactory,
       [walletCloneable, EntryPoint, owner.address],
-      { initializer: 'initialize', constructorArgs: [walletCloneable], unsafeAllow: ['constructor', 'state-variable-immutable'] }, create3Factory, owner, accountFactorySalt)
+      { initializer: 'initialize', constructorArgs: [walletCloneable, walletV154], unsafeAllow: ['constructor', 'state-variable-immutable'] }, create3Factory, owner, accountFactorySalt)
 
     await accountFactory.deployed()
     console.log(`BloctoAccountFactory JUST deployed to: ${accountFactory.address}`)

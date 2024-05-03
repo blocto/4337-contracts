@@ -48,6 +48,9 @@ contract CoreWallet is IERC1271 {
     /// @notice This is for point and revert flag b01 when any meta tx fail because of atomicity
     uint256 internal constant FEE_SUCCESS_META_TXS_FAIL = type(uint256).max - 1;
 
+    /// @notice module manager address for verifying module address
+    address public immutable moduleManager;
+
     /// @notice The pre-shifted authVersion (to get the current authVersion as an integer,
     ///  shift this value right by 160 bits). Starts as `1 << 160` (`AUTH_VERSION_INCREMENTOR`)
     ///  See the comment on the `authorizations` variable for how this is used.
@@ -109,7 +112,13 @@ contract CoreWallet is IERC1271 {
     ///  for more information about clone contracts.
     bool public initialized;
 
-    error ExecutionResult(bool targetSuccess, uint256 gasLeft);
+    error ExecutionResult(bool targetSuccess, uint256 startGas, uint256 gasLeft);
+
+    /// @notice Construct of CoreWallet
+    /// @param imoduleManager immutable module manager address
+    constructor(address imoduleManager) {
+        moduleManager = imoduleManager;
+    }
 
     /// @notice Used to decorate methods that can only be called directly by the recovery address.
     modifier onlyRecoveryAddress() {
@@ -613,6 +622,7 @@ contract CoreWallet is IERC1271 {
     /// @param _data The data containing the transactions to be invoked; see internalInvoke for details.
     /// @param _signature Signature byte array associated with `_nonce, _data`
     function simulateInvoke2(uint256 _nonce, bytes calldata _data, bytes calldata _signature) external {
+        uint256 startGas = gasleft();
         // calculate hash
         bytes32 operationHash =
             keccak256(abi.encodePacked(EIP191_PREFIX, EIP191_VERSION_DATA, this, block.chainid, _nonce, _data));
@@ -632,7 +642,7 @@ contract CoreWallet is IERC1271 {
         internalInvoke(operationHash, _data);
 
         // always revert
-        revert ExecutionResult(true, gasleft());
+        revert ExecutionResult(true, startGas, gasleft());
     }
 
     /// @dev Internal invoke
@@ -722,7 +732,11 @@ contract CoreWallet is IERC1271 {
         // the revert call from assembly.
         string memory invalidLengthMessage = "data field too short";
         string memory callFailed = "call failed";
-
+        string memory unverifiedModule = "unverified module";
+        // assembly cannot access immutable variables directly, so we need to load the moduleManager address into memory
+        address moduleManagerAddr = moduleManager;
+        // each meta tx success variable
+        bool success;
         // At an absolute minimum, the data field must be at least 85 bytes
         // <revert(1), to_address(20), value(32), data_length(32)>
 
@@ -743,6 +757,12 @@ contract CoreWallet is IERC1271 {
                 // 52 = to(20) + value(32)
                 let len := mload(add(memPtr, 52))
 
+                // delete call to blocto modules
+                // shift 12 byters and check if moduleAddr is zero
+                let moduleAddr := shr(96, len)
+                // only keep 12 bytes
+                len := and(len, 0xFFFFFFFFFFFFFFFFFFFFFFFF)
+
                 // Compute a pointer to the end of the current operation
                 // 84 = to(20) + value(32) + size(32)
                 let opEnd := add(len, add(memPtr, 84))
@@ -755,11 +775,27 @@ contract CoreWallet is IERC1271 {
                     // The computed end of this operation goes past the end of the data buffer. Not good!
                     revert(add(invalidLengthMessage, 32), mload(invalidLengthMessage))
                 }
-                // NOTE: Code that is compatible with solidity-coverage
-                // switch gt(opEnd, endPtr)
-                // case 1 {
-                //     revert(add(invalidLengthMessage, 32), mload(invalidLengthMessage))
-                // }
+
+                switch moduleAddr
+                case 0 {
+                    success := call(gas(), shr(96, mload(memPtr)), mload(add(memPtr, 20)), add(memPtr, 84), len, 0, 0)
+                }
+                default {
+                    // step 1. is this module verified ?
+                    let isVerifiedAddr := mload(0x40)
+                    // signature of isVerified(address)
+                    let selector := shl(224, 0xb9209e33)
+                    mstore(isVerifiedAddr, selector)
+                    mstore(add(isVerifiedAddr, 0x04), moduleAddr)
+                    // call moduleManager to check if module is verified
+                    let callSuccess := staticcall(gas(), moduleManagerAddr, isVerifiedAddr, 0x24, 0x00, 0x20)
+                    let isVerified := mload(0x00)
+                    if eq(0, and(callSuccess, isVerified)) {
+                        revert(add(unverifiedModule, 32), mload(unverifiedModule))
+                    }
+                    // step 2. call module
+                    success := delegatecall(gas(), moduleAddr, memPtr, add(len, 84), 0, 0)
+                }
 
                 // This line of code packs in a lot of functionality!
                 //  - load the target address from memPtr, the address is only 20-bytes but mload always grabs 32-bytes,
@@ -769,7 +805,7 @@ contract CoreWallet is IERC1271 {
                 //  - use the previously loaded len field as the size of the call data
                 //  - make the call (passing all remaining gas to the child call)
                 //  - check the result (0 == reverted)
-                if eq(0, call(gas(), shr(96, mload(memPtr)), mload(add(memPtr, 20)), add(memPtr, 84), len, 0, 0)) {
+                if eq(0, success) {
                     switch revertFlag
                     case 1 { revert(add(callFailed, 32), mload(callFailed)) }
                     default {

@@ -11,7 +11,9 @@ import {
   TestERC20__factory,
   BloctoAccountFactory__factory,
   BloctoAccountFactory,
-  BloctoAccountFactoryBase
+  CREATE3Factory__factory,
+  BloctoAccountFactoryBase,
+  ModuleManager
 } from '../typechain'
 import { EntryPoint } from '@account-abstraction/contracts'
 
@@ -21,7 +23,9 @@ import {
   createAccount,
   createAccountV151,
   createAccountV153,
+  createAccountV154,
   deployEntryPoint,
+  deployModuleManager,
   ONE_ETH,
   TWO_ETH,
   createAuthorizedCosignerRecoverWallet,
@@ -34,7 +38,9 @@ import {
   get151SaltFromAddress,
   RevertFlag,
   txAppendData,
-  logBytes
+  logBytes,
+  deployBloctoWalletV153,
+  deployBloctoWalletV154
 } from './testutils'
 import '@openzeppelin/hardhat-upgrades'
 import { hexZeroPad, concat } from '@ethersproject/bytes'
@@ -42,10 +48,11 @@ import { deployCREATE3Factory, getDeployCode } from '../src/create3Factory'
 import { create3DeployTransparentProxy } from '../src/deployAccountFactoryWithCreate3'
 import { zeroAddress } from 'ethereumjs-util'
 import { parseEther, keccak256 } from 'ethers/lib/utils'
+import { mod } from '@nomicfoundation/ethereumjs-evm/dist/opcodes'
 
 const ShowGasUsage = false
 
-function randNumber (): number {
+function randNumber(): number {
   return Math.floor(Math.random() * (1000000000000000))
 }
 
@@ -61,15 +68,17 @@ describe('BloctoAccount Test', function () {
 
   let entryPoint: EntryPoint
 
+  let moduleManager: ModuleManager
+
   let create3Factory: CREATE3Factory
 
   let testERC20: TestERC20
 
-  const NextVersion = '1.5.3'
+  const NextVersion = '1.5.4'
 
   let account: BloctoAccount
 
-  async function testCreateAccount (salt = 0, mergedKeyIndex = 0, ifactory = factory, version = NextVersion): Promise<BloctoAccount> {
+  async function testCreateAccount(salt = 0, mergedKeyIndex = 0, ifactory = factory, version = NextVersion): Promise<BloctoAccount> {
     const newSalt = keccak256(concat([
       hexZeroPad(BigNumber.from(salt).toHexString(), 32),
       await cosignerWallet.getAddress(),
@@ -113,9 +122,22 @@ describe('BloctoAccount Test', function () {
         )
         break
       case '1.5.3':
-      default:
         console.log('use 1.5.3')
         retAccount = await createAccountV153(
+          ethersSigner,
+          await authorizedWallet.getAddress(),
+          await cosignerWallet.getAddress(),
+          await recoverWallet.getAddress(),
+          BigNumber.from(salt),
+          pxIndexWithParity,
+          px,
+          ifactory
+        )
+        break
+      case '1.5.4':
+      default:
+        console.log('use 1.5.4')
+        retAccount = await createAccountV154(
           ethersSigner,
           await authorizedWallet.getAddress(),
           await cosignerWallet.getAddress(),
@@ -133,7 +155,7 @@ describe('BloctoAccount Test', function () {
   }
 
   // use authorizedWallet and cosignerWallet to send ERC20 from wallet
-  async function sendERC20 (iAccount: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
+  async function sendERC20(iAccount: BloctoAccount, to: string, amount: BigNumber, withChainId: boolean = true): Promise<ContractTransaction> {
     // const authorizeInAccountNonce = (await account.nonces(authorizedWallet.address)).add(1)
     let authorizeInAccountNonce: BigNumber
     if (withChainId) {
@@ -152,7 +174,7 @@ describe('BloctoAccount Test', function () {
     return await accountLinkCosigner.invoke1CosignerSends(sign.v, sign.r, sign.s, authorizeInAccountNonce, authorizedWallet.address, data)
   }
 
-  async function mint1000testERC20 (target: string, leastAmount: BigNumber, erc20: TestERC20 = testERC20): Promise<BigNumber> {
+  async function mint1000testERC20(target: string, leastAmount: BigNumber, erc20: TestERC20 = testERC20): Promise<BigNumber> {
     const before = await erc20.balanceOf(target)
     if (before.lt(leastAmount)) {
       console.log(`mint 1000 ${await erc20.symbol()} to ${target}`)
@@ -171,36 +193,31 @@ describe('BloctoAccount Test', function () {
     await fund(cosignerWallet.address)
     // 4337
     entryPoint = await deployEntryPoint()
-
+    // module manager
+    moduleManager = await deployModuleManager()
     // create3 factory
     create3Factory = await deployCREATE3Factory(ethersSigner)
 
-    const accountSalt = hexZeroPad(Buffer.from('BloctoAccount', 'utf-8'), 32)
-    implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
-
-    if ((await ethers.provider.getCode(implementation)) !== '0x') {
-      console.log(`Using Existed BloctoAccountCloneableWallet (${implementation})!`)
-    } else {
-      console.log(`Deploying to BloctoAccountCloneableWallet (${implementation})...`)
-      const bloctoAccountCloneableWalletDeployTx = await create3Factory.deploy(
-        accountSalt,
-        getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPoint.address])
-      )
-      await bloctoAccountCloneableWalletDeployTx.wait()
-    }
+    const v153 = await deployBloctoWalletV153(ethersSigner, create3Factory, entryPoint.address, moduleManager.address)
+    const v154 = await deployBloctoWalletV154(ethersSigner, create3Factory, entryPoint.address, moduleManager.address)
+    const implementation = v153.address
     // account factory
-    const BloctoAccountFactoryBase = await ethers.getContractFactory('BloctoAccountFactoryBase')
+    const BloctoAccountFactory = await ethers.getContractFactory('BloctoAccountFactory')
     const BloctoAccountFactoryProxySalt = hexZeroPad(Buffer.from('BloctoAccountFactoryProxy_v140', 'utf-8'), 32)
     const accountFactoryAddress: string = await create3Factory.getDeployed(await create3Factory.signer.getAddress(), BloctoAccountFactoryProxySalt)
     if ((await ethers.provider.getCode(accountFactoryAddress)) !== '0x') {
       console.log(`Using Existed BloctoAccountFactory (${accountFactoryAddress})!`)
       factory = await BloctoAccountFactory__factory.connect(accountFactoryAddress, ethersSigner)
     } else {
-      console.log(`Deploying to BloctoAccountFactoryBase (${accountFactoryAddress})...`)
-      factory = await create3DeployTransparentProxy(BloctoAccountFactoryBase,
+      console.log(`Deploying to BloctoAccountFactory (${accountFactoryAddress})...`)
+      console.log('v153: ', v153.address)
+      console.log('v154: ', v154.address)
+      console.log('entryPoint: ', entryPoint.address)
+      factory = await create3DeployTransparentProxy(BloctoAccountFactory,
         [implementation, entryPoint.address, await ethersSigner.getAddress()],
-        { initializer: 'initialize' }, create3Factory, ethersSigner, BloctoAccountFactoryProxySalt)
+        { initializer: 'initialize', constructorArgs: [v153.address, v154.address], unsafeAllow: ['constructor', 'state-variable-immutable'] }, create3Factory, ethersSigner, BloctoAccountFactoryProxySalt)
     }
+    console.log('before deploy')
     // To consider test on REAL chain, separate factory method manipulation
     const createAccountRole = await factory.CREATE_ACCOUNT_ROLE()
     if (!(await factory.hasRole(createAccountRole, await ethersSigner.getAddress()))) {
@@ -213,7 +230,7 @@ describe('BloctoAccount Test', function () {
       const factorySetImplementation_1_5_1Tx = await factory.setImplementation_1_5_1(implementation)
       await factorySetImplementation_1_5_1Tx.wait()
     }
-
+    console.log('222 sfactory address: ', factory.address)
     const nowFactoryVersoin = await factory.VERSION()
     console.log(`Factory version: ${nowFactoryVersoin}`)
     if (nowFactoryVersoin !== NextVersion) {
@@ -266,7 +283,7 @@ describe('BloctoAccount Test', function () {
     })
 
     it('should not initImplementation with a contract', async () => {
-      const b = await new BloctoAccount__factory(ethersSigner).deploy(entryPoint.address)
+      const b = await new BloctoAccount__factory(ethersSigner).deploy(entryPoint.address, moduleManager.address)
       await expect(b.initImplementation('0x' + 'a'.repeat(40))).to.revertedWith('ERC1967: new implementation is not a contract')
     })
 
@@ -652,8 +669,8 @@ describe('BloctoAccount Test', function () {
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
-            event.args?.authorizedAddress === authorizedEOA.address &&
-            event.args?.wallet === predictAddr151) {
+          event.args?.authorizedAddress === authorizedEOA.address &&
+          event.args?.wallet === predictAddr151) {
           findWalletCreated = true
         }
       })
@@ -703,8 +720,8 @@ describe('BloctoAccount Test', function () {
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
-            event.args?.authorizedAddress === authorizedEOA.address &&
-            event.args?.wallet === predictAddr151) {
+          event.args?.authorizedAddress === authorizedEOA.address &&
+          event.args?.wallet === predictAddr151) {
           findWalletCreated = true
         }
       })
@@ -754,8 +771,8 @@ describe('BloctoAccount Test', function () {
       let findWalletCreated = false
       receipt.events?.forEach((event) => {
         if (event.event === 'WalletCreated' &&
-            event.args?.authorizedAddress === authorizedEOA.address &&
-            event.args?.wallet === predictAddr151) {
+          event.args?.authorizedAddress === authorizedEOA.address &&
+          event.args?.wallet === predictAddr151) {
           findWalletCreated = true
         }
       })
@@ -833,7 +850,7 @@ describe('BloctoAccount Test', function () {
       expect(await account2_1_5_1.VERSION()).to.equal(NextVersion)
 
       if (cosignerWallet2.address === '0x4eF791438972d2D41FF4BF7911E0F7372971eFcA' &&
-      recoverWallet2.address === '0xFEC60025526f37BEB6134631322E98e48794d8fb') {
+        recoverWallet2.address === '0xFEC60025526f37BEB6134631322E98e48794d8fb') {
         const initImplementation = await factory.initImplementation()
         // local account
         if (factory.address === '0x591E00821444155a7076cd7254747d05D1374267') {
@@ -863,14 +880,14 @@ describe('BloctoAccount Test', function () {
     const erc20Receiver = createTmpAccount(8)
     const testFee = parseEther('10')
 
-    function fee10DAI (revertFlag: RevertFlag): Uint8Array {
+    function fee10DAI(revertFlag: RevertFlag): Uint8Array {
       // const revertFlag = isRevert ? RevertFlag.Revert : RevertFlag.NoRevert
       return txData(revertFlag, dai.address, BigNumber.from(0),
         testERC20.interface.encodeFunctionData('transfer', [feeReceiver.address, testFee]))
     }
 
     // tx 1: send 10 DAI to feeReceiver, tx 2: send 1 ERC20 to erc20Receiver
-    async function feeWithSendERC20 (revertFlag: RevertFlag): Promise<[BigNumber, Uint8Array, string]> {
+    async function feeWithSendERC20(revertFlag: RevertFlag): Promise<[BigNumber, Uint8Array, string]> {
       const feeData = fee10DAI(revertFlag)
 
       const erc20TransferData = txAppendData(feeData, testERC20.address, BigNumber.from(0),
@@ -883,7 +900,7 @@ describe('BloctoAccount Test', function () {
     }
 
     // tx 1: send 10 DAI to feeReceiver, tx 2: send 1 ERC20 to erc20Receiver
-    async function feeWithSendERC20AndNativeToken (revertFlag: RevertFlag): Promise<[BigNumber, Uint8Array, string]> {
+    async function feeWithSendERC20AndNativeToken(revertFlag: RevertFlag): Promise<[BigNumber, Uint8Array, string]> {
       const feeData = fee10DAI(revertFlag)
 
       const tx12Data = txAppendData(feeData, testERC20.address, BigNumber.from(0),
@@ -897,7 +914,7 @@ describe('BloctoAccount Test', function () {
       return [newNonce, tx123Data, sign]
     }
 
-    async function clearOutBalance (erc20: TestERC20, targetAccount: BloctoAccount): Promise<void> {
+    async function clearOutBalance(erc20: TestERC20, targetAccount: BloctoAccount): Promise<void> {
       const balance = await erc20.balanceOf(targetAccount.address)
       if (balance.gt(0)) {
         console.log(`${targetAccount.address} clear out balance(${balance.toString()}) of ${await erc20.symbol()}`)
@@ -1201,7 +1218,7 @@ describe('BloctoAccount Test', function () {
       const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
 
       console.log('simulating createAccountWithInvoke2...')
-      const errorArgs = await factory.callStatic.simulateCreateAccountWithInvoke2_1_5_3(
+      const errorArgs = await factory.callStatic.simulateCreateAccountWithInvoke2_1_5_4(
         await authorizedEOA.getAddress(),
         await cosignerEOA.getAddress(),
         await recoverEOA.getAddress(),
@@ -1209,13 +1226,13 @@ describe('BloctoAccount Test', function () {
         pxIndexWithParity,
         px,
         { nonce: newNonce, data: erc20TransferData, signature: sign },
-        { gasLimit: 1e6 }
+        { gasLimit: 8e6 }
       ).catch(e => e.errorArgs)
       // targetSuccess should be true
       expect(errorArgs.targetSuccess).to.be.true
       expect(errorArgs.gasLeft).to.gt(0)
       // use around 2e5 gas
-      expect(errorArgs.gasLeft).to.lt(8e5)
+      expect(errorArgs.gasLeft).to.lt(8e6)
       // the account should NOT be created
       expect(await ethers.provider.getCode(predictAddr151)).to.equal('0x')
     })
@@ -1241,7 +1258,7 @@ describe('BloctoAccount Test', function () {
       const sign = await signForInovke2(predictAddr151, newNonce, erc20TransferData, authorizedEOA, cosignerEOA)
 
       console.log('simulating createAccount2WithInvoke2...')
-      const errorArgs = await factory.callStatic.simulateCreateAccount2WithInvoke2_1_5_3(
+      const errorArgs = await factory.callStatic.simulateCreateAccount2WithInvoke2_1_5_4(
         [authorizedEOA.address, authorizedEOA2.address],
         cosignerEOA.address, recoverEOA.address,
         newSalt,

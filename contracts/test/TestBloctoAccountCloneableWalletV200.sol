@@ -7,7 +7,7 @@ import "./TestBloctoAccountV200.sol";
 /// @notice This contract represents a complete but non working wallet.
 contract TestBloctoAccountCloneableWalletV200 is TestBloctoAccountV200 {
     /// @dev Cconstructor that deploys a NON-FUNCTIONAL version of `TestBloctoAccountV140`
-    constructor(IEntryPoint anEntryPoint) TestBloctoAccountV200(anEntryPoint) {
+    constructor(IEntryPoint anEntryPoint, address moduleManager) TestBloctoAccountV200(anEntryPoint, moduleManager) {
         initialized = true;
     }
 }
