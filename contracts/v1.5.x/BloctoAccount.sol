@@ -19,7 +19,7 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     /**
      *  This is the version of this contract.
      */
-    string public constant VERSION = "1.5.3";
+    string public constant VERSION = "1.5.4";
 
     /// @notice entrypoint from 4337 official
     IEntryPoint private immutable _entryPoint;
@@ -30,8 +30,9 @@ contract BloctoAccount is UUPSUpgradeable, TokenCallbackHandler, CoreWallet, Bas
     /**
      * constructor for BloctoAccount
      * @param anEntryPoint entrypoint address
+     * @param moduleManager module manager address
      */
-    constructor(IEntryPoint anEntryPoint) {
+    constructor(IEntryPoint anEntryPoint, address moduleManager) CoreWallet(moduleManager) {
         _entryPoint = anEntryPoint;
     }
 

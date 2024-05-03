@@ -8,7 +8,8 @@ import "./BloctoAccount.sol";
 contract BloctoAccountCloneableWallet is BloctoAccount {
     /// @notice  constructor that deploys a NON-FUNCTIONAL version of `BloctoAccount`
     /// @param anEntryPoint entrypoint address
-    constructor(IEntryPoint anEntryPoint) BloctoAccount(anEntryPoint) {
+    /// @param moduleManager module manager address
+    constructor(IEntryPoint anEntryPoint, address moduleManager) BloctoAccount(anEntryPoint, moduleManager) {
         initialized = true;
         initializedImplementation = true;
     }

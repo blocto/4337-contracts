@@ -15,7 +15,8 @@
     "deploy-verifyingPaymaster": "hardhat run deploy/2_deploy_VerifyingPaymaster.ts",
     "deploy-upgrade": "hardhat run deploy/upgrade/0_upgrade.ts",
     "deploy-verify": "hardhat run deploy/4_verify.ts",
-    "deploy-v1.1.0": "hardhat run deploy/6_deploy_v1.1.0.ts"
+    "deploy-v1.1.0": "hardhat run deploy/6_deploy_v1.1.0.ts",
+    "deploy-moduleManager": "hardhat run deploy/6_deploy_moduleManager.ts"
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",

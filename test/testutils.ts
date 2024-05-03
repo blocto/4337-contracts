@@ -11,8 +11,14 @@ import {
   IERC20,
   BloctoAccount,
   BloctoAccount__factory,
-  BloctoAccountFactory
+  BloctoAccountCloneableWallet__factory,
+  BloctoAccountCloneableWallet,
+  BloctoAccountFactory,
+  ModuleManager,
+  CREATE3Factory
 } from '../typechain'
+
+import { getDeployCode } from '../src/create3Factory'
 
 import { EntryPoint, EntryPoint__factory } from '@account-abstraction/contracts'
 
@@ -45,7 +51,7 @@ export enum RevertFlag {
   PointWithRevert = 3, // b11
 }
 
-export function tonumber (x: any): number {
+export function tonumber(x: any): number {
   try {
     return parseFloat(x.toString())
   } catch (e: any) {
@@ -55,7 +61,7 @@ export function tonumber (x: any): number {
 }
 
 // just throw 1eth from account[0] to the given address (or contract instance)
-export async function fund (contractOrAddress: string | Contract, amountEth = '0.05'): Promise<void> {
+export async function fund(contractOrAddress: string | Contract, amountEth = '0.05'): Promise<void> {
   let address: string
   if (typeof contractOrAddress === 'string') {
     address = contractOrAddress
@@ -71,44 +77,44 @@ export async function fund (contractOrAddress: string | Contract, amountEth = '0
   await tx.wait()
 }
 
-export async function getBalance (address: string): Promise<number> {
+export async function getBalance(address: string): Promise<number> {
   const balance = await ethers.provider.getBalance(address)
   return parseInt(balance.toString())
 }
 
-export async function getTokenBalance (token: IERC20, address: string): Promise<number> {
+export async function getTokenBalance(token: IERC20, address: string): Promise<number> {
   const balance = await token.balanceOf(address)
   return parseInt(balance.toString())
 }
 
 let counter = 0 // Math.floor(Math.random() * 5000)
 
-export function createTmpAccount (idx: number = 1): Wallet {
+export function createTmpAccount(idx: number = 1): Wallet {
   const envName = 'TMP_KEY_' + String(idx)
   const privateKey = typeof (process.env[envName]) !== 'undefined' ? process.env[envName] : keccak256(Buffer.from(arrayify(BigNumber.from(++counter))))
 
   return new Wallet(privateKey as string, ethers.provider)
 }
 // create non-random account, so gas calculations are deterministic
-export function createAuthorizedCosignerRecoverWallet (): [Wallet, Wallet, Wallet] {
+export function createAuthorizedCosignerRecoverWallet(): [Wallet, Wallet, Wallet] {
   return [createTmpAccount(1), createTmpAccount(2), createTmpAccount(3)]
 }
 
-export function createAuthorizedCosignerRecoverWallet2 (): [Wallet, Wallet, Wallet] {
+export function createAuthorizedCosignerRecoverWallet2(): [Wallet, Wallet, Wallet] {
   return [createTmpAccount(4), createTmpAccount(5), createTmpAccount(6)]
 }
 
-export function createAddress (): string {
+export function createAddress(): string {
   return createTmpAccount().address
 }
 
-export function callDataCost (data: string): number {
+export function callDataCost(data: string): number {
   return ethers.utils.arrayify(data)
     .map(x => x === 0 ? 4 : 16)
     .reduce((sum, x) => sum + x)
 }
 
-export async function calcGasUsage (rcpt: ContractReceipt, entryPoint: EntryPoint, beneficiaryAddress?: string): Promise<{ actualGasCost: BigNumberish }> {
+export async function calcGasUsage(rcpt: ContractReceipt, entryPoint: EntryPoint, beneficiaryAddress?: string): Promise<{ actualGasCost: BigNumberish }> {
   const actualGas = await rcpt.gasUsed
   const logs = await entryPoint.queryFilter(entryPoint.filters.UserOperationEvent(), rcpt.blockHash)
   const { actualGasCost, actualGasUsed } = logs[0].args
@@ -123,7 +129,7 @@ export async function calcGasUsage (rcpt: ContractReceipt, entryPoint: EntryPoin
 }
 
 // helper function to create the initCode to deploy the account, using our account factory.
-export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt, pxIndexWithParity, px): BytesLike {
+export function getAccountInitCode(factory: BloctoAccountFactory, authorizedAddress: string, cosignerAddress: string, recoveryAddress: string, salt, pxIndexWithParity, px): BytesLike {
   return hexConcat([
     factory.address,
     factory.interface.encodeFunctionData('createAccountLegacy', [authorizedAddress, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
@@ -131,7 +137,7 @@ export function getAccountInitCode (factory: BloctoAccountFactory, authorizedAdd
 }
 
 // helper function to create the initCode to deploy the account, using our account factory.
-export function getAccountInitCode2 (factory: BloctoAccountFactory, authorizedAddresses: BytesLike, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
+export function getAccountInitCode2(factory: BloctoAccountFactory, authorizedAddresses: BytesLike, cosignerAddress: string, recoveryAddress: string, salt = 0): BytesLike {
   return hexConcat([
     factory.address,
     factory.interface.encodeFunctionData('createAccount2Legacy', [authorizedAddresses, cosignerAddress, recoveryAddress, BigNumber.from(salt)])
@@ -155,7 +161,7 @@ const panicCodes: { [key: number]: string } = {
 // - stack trace goes back to method (or catch) line, not inner provider
 // - attempt to parse revert data (needed for geth)
 // use with ".catch(rethrow())", so that current source file/line is meaningful.
-export function rethrow (): (e: Error) => void {
+export function rethrow(): (e: Error) => void {
   const callerStack = new Error().stack!.replace(/Error.*\n.*at.*\n/, '').replace(/.*at.* \(internal[\s\S]*/, '')
 
   if (arguments[0] != null) {
@@ -179,7 +185,7 @@ export function rethrow (): (e: Error) => void {
   }
 }
 
-export function decodeRevertReason (data: string, nullIfNoMatch = true): string | null {
+export function decodeRevertReason(data: string, nullIfNoMatch = true): string | null {
   const methodSig = data.slice(0, 10)
   const dataParams = '0x' + data.slice(10)
 
@@ -203,7 +209,7 @@ export function decodeRevertReason (data: string, nullIfNoMatch = true): string 
 
 // basic geth support
 // - by default, has a single account. our code needs more.
-export async function checkForGeth (): Promise<void> {
+export async function checkForGeth(): Promise<void> {
   // @ts-ignore
   const provider = ethers.provider._hardhatProvider
 
@@ -227,7 +233,7 @@ export async function checkForGeth (): Promise<void> {
 // { '0': "a", '1': 20, first: "a", second: 20 }
 // becomes:
 // { first: "a", second: "20" }
-export function objdump (obj: { [key: string]: any }): any {
+export function objdump(obj: { [key: string]: any }): any {
   return Object.keys(obj)
     .filter(key => key.match(/^[\d_]/) == null)
     .reduce((set, key) => ({
@@ -239,7 +245,7 @@ export function objdump (obj: { [key: string]: any }): any {
  * process exception of ValidationResult
  * usage: entryPoint.simulationResult(..).catch(simulationResultCatch)
  */
-export function simulationResultCatch (e: any): any {
+export function simulationResultCatch(e: any): any {
   if (e.errorName !== 'ValidationResult') {
     throw e
   }
@@ -250,14 +256,14 @@ export function simulationResultCatch (e: any): any {
  * process exception of ValidationResultWithAggregation
  * usage: entryPoint.simulationResult(..).catch(simulationResultWithAggregation)
  */
-export function simulationResultWithAggregationCatch (e: any): any {
+export function simulationResultWithAggregationCatch(e: any): any {
   if (e.errorName !== 'ValidationResultWithAggregation') {
     throw e
   }
   return e.errorArgs
 }
 
-export async function deployEntryPoint (provider = ethers.provider): Promise<EntryPoint> {
+export async function deployEntryPoint(provider = ethers.provider): Promise<EntryPoint> {
   // console.log('in deployEntryPoint')
   // console.log('await ethers.provider.getCode(EntryPointV060):', await ethers.provider.getCode(EntryPointV060))
   let addr = EntryPointV060
@@ -273,13 +279,52 @@ export async function deployEntryPoint (provider = ethers.provider): Promise<Ent
   return EntryPoint__factory.connect(addr, provider.getSigner())
 }
 
-export async function isDeployed (addr: string): Promise<boolean> {
+export async function deployModuleManager(): Promise<ModuleManager> {
+  const instance = await ethers.getContractFactory('contracts/v1.1.0/CloneableWallet.sol:CloneableWallet')
+  return await instance.deploy() as ModuleManager
+}
+
+export async function deployBloctoWalletV153(ethersSigner: Signer, create3Factory: CREATE3Factory, entryPointAddr: string, moduleManagerAddr: string): Promise<BloctoAccountCloneableWallet> {
+  const accountSalt = hexZeroPad(Buffer.from('BloctoAccountV153', 'utf-8'), 32)
+  const implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
+
+  if ((await ethers.provider.getCode(implementation)) !== '0x') {
+    console.log(`Using Existed BloctoAccountCloneableWallet (${implementation})!`)
+  } else {
+    console.log(`Deploying to BloctoAccountCloneableWallet (${implementation})...`)
+    const bloctoAccountCloneableWalletDeployTx = await create3Factory.deploy(
+      accountSalt,
+      getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPointAddr, moduleManagerAddr])
+    )
+    await bloctoAccountCloneableWalletDeployTx.wait()
+  }
+  return await BloctoAccountCloneableWallet__factory.connect(implementation, ethersSigner)
+}
+
+export async function deployBloctoWalletV154(ethersSigner: Signer, create3Factory: CREATE3Factory, entryPointAddr: string, moduleManagerAddr: string): Promise<BloctoAccountCloneableWallet> {
+  const accountSalt = hexZeroPad(Buffer.from('BloctoAccountV154', 'utf-8'), 32)
+  const implementation = await create3Factory.getDeployed(await ethersSigner.getAddress(), accountSalt)
+
+  if ((await ethers.provider.getCode(implementation)) !== '0x') {
+    console.log(`Using Existed BloctoAccountCloneableWallet (${implementation})!`)
+  } else {
+    console.log(`Deploying to BloctoAccountCloneableWallet (${implementation})...`)
+    const bloctoAccountCloneableWalletDeployTx = await create3Factory.deploy(
+      accountSalt,
+      getDeployCode(new BloctoAccountCloneableWallet__factory(), [entryPointAddr, moduleManagerAddr])
+    )
+    await bloctoAccountCloneableWalletDeployTx.wait()
+  }
+  return await BloctoAccountCloneableWallet__factory.connect(implementation, ethersSigner)
+}
+
+export async function isDeployed(addr: string): Promise<boolean> {
   const code = await ethers.provider.getCode(addr)
   return code.length > 2
 }
 
 // Deploys an implementation and a proxy pointing to this implementation
-export async function createAccount (
+export async function createAccount(
   ethersSigner: Signer,
   authorizedAddresses: string,
   cosignerAddresses: string,
@@ -302,7 +347,7 @@ export async function createAccount (
 }
 
 // Deploys an implementation and a proxy pointing to this implementation
-export async function createAccountV151 (
+export async function createAccountV151(
   ethersSigner: Signer,
   authorizedAddresses: string,
   cosignerAddresses: string,
@@ -328,7 +373,7 @@ export async function createAccountV151 (
 }
 
 // deploy account with 1.5.3
-export async function createAccountV153 (
+export async function createAccountV153(
   ethersSigner: Signer,
   authorizedAddresses: string,
   cosignerAddresses: string,
@@ -353,8 +398,34 @@ export async function createAccountV153 (
   return account
 }
 
+// deploy account with 1.5.4
+export async function createAccountV154(
+  ethersSigner: Signer,
+  authorizedAddresses: string,
+  cosignerAddresses: string,
+  recoverAddresses: string,
+  salt: BigNumber,
+  mergedKeyIndexWithParity: number,
+  mergedKey: string,
+  accountFactory: BloctoAccountFactory
+): Promise<BloctoAccount> {
+  const newSalt = keccak256(concat([
+    ethers.utils.hexZeroPad(salt.toHexString(), 32),
+    cosignerAddresses, recoverAddresses
+  ]))
+  const accountAddress = await accountFactory.getAddress_1_5_1(newSalt)
+  const tx = await accountFactory.createAccount_1_5_4(authorizedAddresses, cosignerAddresses, recoverAddresses, newSalt, mergedKeyIndexWithParity, mergedKey)
+  const receipt = await tx.wait()
+  if (ShowCreateAccountGas) {
+    console.log('createAccount_1_5_4 gasUsed: ', receipt.gasUsed)
+  }
+
+  const account = BloctoAccount__factory.connect(accountAddress, ethersSigner)
+  return account
+}
+
 // helper function to create the setEntryPointCode to set the account entryPoint address
-export function getSetEntryPointCode (account: BloctoAccount, entryPointAddress: string): BytesLike {
+export function getSetEntryPointCode(account: BloctoAccount, entryPointAddress: string): BytesLike {
   return hexConcat([
     account.address,
     account.interface.encodeFunctionData('setEntryPoint', [entryPointAddress])
@@ -405,7 +476,7 @@ export const txAppendData = (preData: Uint8Array, to: string, amount: BigNumber,
 }
 
 export const EIP191V0MessagePrefix = '\x19\x00'
-export function hashMessageEIP191V0 (chainId: number, address: string, message: Bytes | string): string {
+export function hashMessageEIP191V0(chainId: number, address: string, message: Bytes | string): string {
   address = address.replace('0x', '')
 
   const chainIdStr = ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32)
@@ -418,7 +489,7 @@ export function hashMessageEIP191V0 (chainId: number, address: string, message: 
   ]))
 }
 
-export function hashMessageEIP191V0WithoutChainId (address: string, message: Bytes | string): string {
+export function hashMessageEIP191V0WithoutChainId(address: string, message: Bytes | string): string {
   address = address.replace('0x', '')
 
   return keccak256(concat([
@@ -428,7 +499,7 @@ export function hashMessageEIP191V0WithoutChainId (address: string, message: Byt
   ]))
 }
 
-export async function signMessage (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array, addrForData: string = signerWallet.address): Promise<Signature> {
+export async function signMessage(signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array, addrForData: string = signerWallet.address): Promise<Signature> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
 
   const dataForHash = concat([
@@ -440,7 +511,7 @@ export async function signMessage (signerWallet: Wallet, accountAddress: string,
   return sign
 }
 
-export async function signMessageWithoutChainId (signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
+export async function signMessageWithoutChainId(signerWallet: Wallet, accountAddress: string, nonce: BigNumber, data: Uint8Array): Promise<Signature> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
 
   const dataForHash = concat([
@@ -452,7 +523,7 @@ export async function signMessageWithoutChainId (signerWallet: Wallet, accountAd
   return sign
 }
 
-export async function signForInovke2 (accountAddr: string, nonce: BigNumber, data: Uint8Array, signer: Wallet, cosigner: Wallet, useSchnorr = false, mergedKeyIndex = 0): Promise<string> {
+export async function signForInovke2(accountAddr: string, nonce: BigNumber, data: Uint8Array, signer: Wallet, cosigner: Wallet, useSchnorr = false, mergedKeyIndex = 0): Promise<string> {
   const nonceBytesLike = hexZeroPad(nonce.toHexString(), 32)
 
   const dataForHash = concat([
@@ -496,11 +567,11 @@ export async function signForInovke2 (accountAddr: string, nonce: BigNumber, dat
   return signature
 }
 
-export function logBytes (uint8: Uint8Array): string {
+export function logBytes(uint8: Uint8Array): string {
   return Buffer.from(uint8).toString('hex') + '(' + uint8.length.toString() + ')'
 }
 
-export function getMergedKey (wallet1: Wallet, wallet2: Wallet, mergedKeyIndex: number): [px: string, pxIndexWithParity: number] {
+export function getMergedKey(wallet1: Wallet, wallet2: Wallet, mergedKeyIndex: number): [px: string, pxIndexWithParity: number] {
   mergedKeyIndex = 128 + (mergedKeyIndex << 1)
   const signerOne = new DefaultSigner(wallet1)
   const signerTwo = new DefaultSigner(wallet2)
@@ -512,23 +583,23 @@ export function getMergedKey (wallet1: Wallet, wallet2: Wallet, mergedKeyIndex: 
   return [px, pxIndexWithParity]
 }
 
-function padWithZeroes (hexString: string, targetLength: number): string {
+function padWithZeroes(hexString: string, targetLength: number): string {
   if (hexString !== '' && !/^[a-f0-9]+$/iu.test(hexString)) {
     throw new Error(
-        `Expected an unprefixed hex string. Received: ${hexString}`
+      `Expected an unprefixed hex string. Received: ${hexString}`
     )
   }
 
   if (targetLength < 0) {
     throw new Error(
-        `Expected a non-negative integer target length. Received: ${targetLength}`
+      `Expected a non-negative integer target length. Received: ${targetLength}`
     )
   }
 
   return String.prototype.padStart.call(hexString, targetLength, '0')
 }
 
-function concatSig (v: Buffer, r: Buffer, s: Buffer): string {
+function concatSig(v: Buffer, r: Buffer, s: Buffer): string {
   const rSig = fromSigned(r)
   const sSig = fromSigned(s)
   const vSig = bufferToInt(v)
@@ -538,13 +609,13 @@ function concatSig (v: Buffer, r: Buffer, s: Buffer): string {
   return addHexPrefix(rStr.concat(sStr, vStr))
 }
 
-export function sign2Str (signer: Wallet, data: string): string {
+export function sign2Str(signer: Wallet, data: string): string {
   const sig = signer._signingKey().signDigest(data)
 
   return concatSig(toBuffer(sig.v), toBuffer(sig.r), toBuffer(sig.s))
 }
 
-export function get151SaltFromAddress (
+export function get151SaltFromAddress(
   salt: number,
   cosignerAddresses: string,
   recoverAddresses: string): string {

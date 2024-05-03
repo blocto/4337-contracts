@@ -27,7 +27,7 @@ contract TestBloctoAccountV200 is UUPSUpgradeable, TokenCallbackHandler, CoreWal
      * constructor for BloctoAccount
      * @param anEntryPoint entrypoint address
      */
-    constructor(IEntryPoint anEntryPoint) {
+    constructor(IEntryPoint anEntryPoint, address moduleManager) CoreWallet(moduleManager) {
         _entryPoint = anEntryPoint;
     }
 
