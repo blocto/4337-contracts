@@ -10,7 +10,7 @@ async function main(): Promise<void> {
 
   // sleep 15 seconds
   console.log('sleep 15 seconds for chain sync...')
-  await new Promise(f => setTimeout(f, 1))
+  await new Promise(f => setTimeout(f, 15000))
   // ---------------Verify BloctoAccountProxy Contract---------------- //
   await hre.run('verify:verify', {
     address: create3Factory.address,
