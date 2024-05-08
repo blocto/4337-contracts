@@ -124,7 +124,7 @@ const config: HardhatUserConfig = {
       chainId: 421613
     },
     arbitrum_sepolia: {
-      url: 'https://arbitrum-sepolia.blockpi.network/v1/rpc/public',
+      url: 'https://sepolia-rollup.arbitrum.io/rpc',
       accounts: getDeployAccount(),
       chainId: 421614
     },
@@ -222,6 +222,16 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.merlinchain.io',
       accounts: getDeployAccount(),
       chainId: 4200
+    },
+    xlayer_testnet: {
+      url: 'https://xlayertestrpc.okx.com/',
+      accounts: getDeployAccount(),
+      chainId: 195
+    },
+    xlayer: {
+      url: 'https://xlayerrpc.okx.com',
+      accounts: getDeployAccount(),
+      chainId: 196
     }
   },
   mocha: {
@@ -258,7 +268,9 @@ const config: HardhatUserConfig = {
       astarZkevmSepolia: SCROLLSCAN_API_KEY,
       taikoJolnirSepolia: SCROLLSCAN_API_KEY,
       merlin: SCROLLSCAN_API_KEY,
-      merlinTestnet: SCROLLSCAN_API_KEY
+      merlinTestnet: SCROLLSCAN_API_KEY,
+      xlayer: 'OKLINK',
+      xlayerTestnet: 'OKLINK'
     },
     customChains: [
       {
@@ -395,6 +407,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: 'https://scan.merlinchain.io/api',
           browserURL: 'https://scan.merlinchain.io'
+        }
+      },
+      {
+        network: 'xlayerTestnet',
+        chainId: 195,
+        urls: {
+          apiURL: 'https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER_TESTNET',
+          browserURL: 'https://www.okx.com/explorer/xlayer-test'
+        }
+      },
+      {
+        network: 'xlayer',
+        chainId: 196,
+        urls: {
+          apiURL: 'https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER',
+          browserURL: 'https://www.okx.com/explorer/xlayer'
         }
       }
     ]

@@ -1,7 +1,7 @@
 import hre, { ethers } from 'hardhat'
 import { deployCREATE3Factory } from '../src/create3Factory'
 
-async function main (): Promise<void> {
+async function main(): Promise<void> {
   const [owner] = await ethers.getSigners()
   console.log(`${owner.address} deploying CREATE3Factory...`)
   const create3Factory = await deployCREATE3Factory(owner)
