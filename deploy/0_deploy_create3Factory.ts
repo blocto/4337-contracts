@@ -1,7 +1,7 @@
 import hre, { ethers } from 'hardhat'
 import { deployCREATE3Factory } from '../src/create3Factory'
 
-async function main (): Promise<void> {
+async function main(): Promise<void> {
   const [owner] = await ethers.getSigners()
   console.log(`${owner.address} deploying CREATE3Factory...`)
   const create3Factory = await deployCREATE3Factory(owner)
@@ -10,7 +10,7 @@ async function main (): Promise<void> {
 
   // sleep 15 seconds
   console.log('sleep 15 seconds for chain sync...')
-  await new Promise(f => setTimeout(f, 15000))
+  await new Promise(f => setTimeout(f, 1))
   // ---------------Verify BloctoAccountProxy Contract---------------- //
   await hre.run('verify:verify', {
     address: create3Factory.address,
